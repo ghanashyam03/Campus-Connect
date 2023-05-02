@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Engineering Student Interests</title>
+    <link rel="stylesheet" href="int.css">
+  </head>
+
+    <style>
+      label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+      input[type="checkbox"] {
+        margin-right: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Engineering Student Interests</h1>
+    <p>Please select your interests:</p>
+    <form method="post" action="/int">
+      <label>
+        <input type="checkbox" name="interest" value="Software Development">
+        Software Development
+      </label>
+      <label>
+        <input type="checkbox" name="interest" value="Hardware Design">
+        Hardware Design
+      </label>
+      <label>
+        <input type="checkbox" name="interest" value="Robotics">
+        Robotics
+      </label>
+      <label>
+        <input type="checkbox" name="interest" value="Data Science">
+        Data Science
+      </label>
+      <label>
+        <input type="checkbox" name="interest" value="Environmental Engineering">
+        Environmental Engineering
+      </label>
+      <button type="submit">Submit</button>
+    </form>
+  </body>
+</html>
