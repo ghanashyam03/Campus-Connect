@@ -88,7 +88,7 @@ app.post('/login', function (req, res) {
                 req.session.loggedin = true;
                 req.session.username = username;
                 
-                res.redirect('/home');
+                res.redirect('/feed');
               } else {
                 const alert = `<script>window.alert("You entered invalid password");</script>`
                 res.send(alert)
@@ -105,15 +105,9 @@ app.post('/login', function (req, res) {
     }
   });
   
-  app.get('/home', function (req, res) {
-    
-    const username = req.session.username;
-    if(username){
-      res.send(`Welcome back to CAMPUS CONNECT, ${username}!`);
-    }
-    else{
-      res.redirect('/')
-    }
+  app.get('/feed', function (req, res) {
+
+        res.sendFile(path.join(__dirname, 'public', 'feed.html')); 
      
     }
   );
@@ -125,6 +119,9 @@ app.post('/login', function (req, res) {
       res.sendFile(path.join(__dirname , 'public' , 'info.html'));
     }
   });
+
+
+  
   
 app.post('/info', function (req, res) {
     const { full, phone, dateo, course, semester, ending } = req.body;
@@ -222,6 +219,9 @@ app.post('/int', function (req, res) {
     }
   });  
 });
+
+
+
 
 const port = 5000;
 
