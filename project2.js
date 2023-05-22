@@ -177,13 +177,10 @@ app.post('/login', function (req, res) {
                 </header>
                 <nav>
                   <ul>
-                    <li><a href="/feed">Home</a></li>
                     <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
                     <li><a href="/profile">Profile</a></li>
                     <li><a href="/people">People</a></li>
                     <li><a href="/notification">Notification</a></li>
-
                   </ul>
                 </nav>
                 <main>
@@ -197,175 +194,6 @@ app.post('/login', function (req, res) {
     });
   
   });
-  
-  app.get('/search', function (req, res) {
-    const searchedUsername = req.query.username; // Assuming the search input is passed as a query parameter with the name 'username'
-  
-    // Retrieve the current user ID
-    const currentUser = req.session.username;
-    const currentUserSql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(currentUserSql, [currentUser], (err, currentUserIds) => {
-      if (err) {
-        console.error('Error fetching data from MySQL database: ', err);
-        res.status(500).send('Internal server error');
-        return;
-      }
-  
-      const currentUserId = currentUserIds[0].userid;
-  
-      // Search for users with similar usernames
-      const sql =
-        'SELECT u.userid, u.username, p.name FROM users u INNER JOIN profile p ON u.userid = p.userid WHERE u.username LIKE ?';
-      connection.query(sql, [searchedUsername + '%'], (err, results) => {
-        if (err) {
-          console.error('Error fetching data from MySQL database: ', err);
-          res.status(500).send('Internal server error');
-          return;
-        }
-  
-        let searchResultsHTML = '';
-        if (results.length === 0) {
-          searchResultsHTML = '<p>No results found.</p>';
-        } else {
-          const friendUserIds = results.map((result) => result.userid);
-  
-          // Check if the current user is following each user in the search results
-          const isFollowingSql = 'SELECT frienduserid FROM friends WHERE userid = ? AND frienduserid IN (?)';
-          connection.query(isFollowingSql, [currentUserId, friendUserIds], (err, followingResults) => {
-            if (err) {
-              console.error('Error fetching data from MySQL database: ', err);
-              res.status(500).send('Internal server error');
-              return;
-            }
-  
-            const followingUserIds = followingResults.map((result) => result.frienduserid);
-  
-            for (const result of results) {
-              const isFollowingUser = followingUserIds.includes(result.userid);
-              const isCurrentUser = result.userid === currentUserId;
-              
-              searchResultsHTML += `
-                <article>
-                  <header>
-                    <h2>@${result.username}</h2>
-                    <p>${result.name}</p>
-                  </header>
-    
-                  <form method="POST" action="/befri">
-                    <input type="hidden" name="friendUsername" value="${result.username}">
-                    ${
-                      isCurrentUser
-                        ? '<button type="button" class="follow-button">You</button>'
-                        : isFollowingUser
-                        ? '<button type="button" class="follow-button">Following</button>'
-                        : '<button type="submit" class="follow-button">Follow</button>'
-                    }
-                  </form>
-                </article>
-              `;
-            }
-  
-            sendSearchResultsHTML();
-          });
-        }
-  
-        function sendSearchResultsHTML() {
-          res.send(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>User Search</title>
-                <link rel="stylesheet" href="search.css">
-              </head>
-              <body>
-                <header>
-                  <h1>User Search</h1>
-                </header>
-                <nav>
-                  <ul>
-                  <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/notification">Notification</a></li>
-                  </ul>
-                </nav>
-                <main>
-                  <form action="/search" method="GET">
-                    <input type="text" name="username" placeholder="Enter @username" />
-                    <button type="submit">Search</button>
-                  </form>
-                  ${searchResultsHTML}
-                </main>
-              </body>
-            </html>
-          `);
-        }
-  
-        // If no search results, send the response immediately
-        if (results.length === 0) {
-          sendSearchResultsHTML();
-        }
-      });
-    });
-
-  });
-  
-  
-  
-  app.post('/befri', (req, res) => {
-    const currentUser = req.session.username;
-    const friendUsername = req.body.friendUsername;
-  
-    // Retrieve the user ID for the current user
-    const currentUserSql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(currentUserSql, [currentUser], (err, currentUserIds) => {
-      if (err) {
-        console.error('Error fetching data from MySQL database: ', err);
-        res.status(500).send('Internal server error');
-        return;
-      }
-      if (currentUserIds.length === 0) {
-        console.error('Current user not found in the database.');
-        res.status(404).send('User not found');
-        return;
-      }
-      const currentUserId = currentUserIds[0].userid;
-  
-      // Retrieve the user ID for the friend user
-      const friendUserSql = 'SELECT userid FROM users WHERE username = ?';
-      connection.query(friendUserSql, [friendUsername], (err, friendUserIds) => {
-        if (err) {
-          console.error('Error fetching data from MySQL database: ', err);
-          res.status(500).send('Internal server error');
-          return;
-        }
-        if (friendUserIds.length === 0) {
-          console.error('Friend user not found in the database.');
-          res.status(404).send('User not found');
-          return;
-        }
-        const friendUserId = friendUserIds[0].userid;
-  
-        // Insert a new row into the friends table
-        const insertSql = 'INSERT INTO friends (userid, frienduserid) VALUES (?, ?)';
-        connection.query(insertSql, [currentUserId, friendUserId], (error, results) => {
-          if (error) {
-            console.error('Error inserting data into MySQL database: ', error);
-            res.status(500).send('Internal server error');
-            return;
-          }
-          res.redirect(`/search`);
-        });
-      });
-    });
-  });
-  
-  
-  
-  
-  
   
 
   
@@ -455,22 +283,12 @@ app.post('/login', function (req, res) {
                 <link rel="stylesheet" type="text/css" href="similar.css">
               </head>
               <body>
-              <nav>
-                  <ul>
-                  <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/notification">Notification</a></li>
-                  </ul>
-                </nav>
                 <h1>Connect with People who Share your Interests</h1>
                 <p>Here are some people who have similar interests</p>
                 <ul>
                   ${response}
                 </ul>
-                
+                <a href="/feed">Home</a>
               </body>
             </html>
           `);
@@ -483,8 +301,6 @@ app.post('/login', function (req, res) {
   const util = require('util');
   const queryPromise = util.promisify(connection.query).bind(connection);
   
-
-
   app.get('/profile', (req, res) => {
     const username = req.session.username;
   
@@ -592,16 +408,6 @@ app.post('/login', function (req, res) {
               <link rel="stylesheet" type="text/css" href="profile.css">
             </head>
             <body>
-            <nav>
-                  <ul>
-                  <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/notification">Notification</a></li>
-                  </ul>
-                </nav>
               ${htmlPosts.join('')}
             </body>
           </html>

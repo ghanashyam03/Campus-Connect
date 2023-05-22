@@ -1,0 +1,114 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  h1, h2, p {
+    margin: 0;
+  }
+  
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  /* Header Styles */
+  header {
+    background-color: #333;
+    color: #fff;
+    padding: 20px;
+  }
+  
+  /* Navigation Styles */
+  nav ul {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  
+  nav li {
+    margin: 0 10px;
+  }
+  
+  nav a {
+    color: #333;
+    text-decoration: none;
+    padding: 5px;
+    border-bottom: 2px solid transparent;
+    transition: border-bottom-color 0.3s ease;
+  }
+  
+  nav a:hover {
+    border-bottom-color: #333;
+  }
+  
+  /* Search Form Styles */
+  form {
+    margin-bottom: 20px;
+  }
+  
+  input[type="text"] {
+    padding: 10px;
+    width: 300px;
+    font-size: 16px;
+  }
+  
+  button[type="submit"] {
+    padding: 10px 20px;
+    background-color: #333;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  /* Search Results Styles */
+  article {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  article header {
+    margin-bottom: 10px;
+  }
+  
+  article h2 {
+    font-size: 20px;
+    margin-bottom: 5px;
+  }
+  
+  article p {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+  
+  .follow-button {
+    padding: 10px 20px;
+    background-color: #333;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .follow-button:hover {
+    background-color: #555;
+  }
+  
+  /* Responsive Styles */
+  @media screen and (max-width: 600px) {
+    input[type="text"] {
+      width: 100%;
+    }
+  }
+  
