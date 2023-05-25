@@ -72,7 +72,8 @@ app.get('/login', function (req, res) {
   
   
   
-app.post('/login', function (req, res) {
+
+  app.post('/login', function (req, res) {
     const { username, password } = req.body;
     if (username && password) {
       const sql = 'SELECT * FROM users WHERE username = ?';
@@ -81,34 +82,39 @@ app.post('/login', function (req, res) {
           console.log(err);
           res.redirect('/login');
         } else if (result.length === 1) {
-          bcrypt.compare(
-            password,
-            result[0].password,
-            (err, bcryptRes) => {
-              if (bcryptRes) {
-                req.session.loggedin = true;
-                req.session.username = username;
-                
-                res.redirect('/feed');
-              } else {
-                const alert = `<script>window.alert("You entered invalid password");</script>`
-                res.send(alert)
-              }
+          bcrypt.compare(password, result[0].password, (err, bcryptRes) => {
+            if (bcryptRes) {
+              req.session.loggedin = true;
+              req.session.username = username;
+  
+              res.redirect('/feed');
+            } else {
+              const alert = `<script>window.alert("You entered an invalid password");</script>`;
+              res.send(alert);
             }
-            );
-          } else {
-          const alert = `<script>window.alert("You entered invalid username");</script>`
-          res.send(alert)
+          });
+        } else {
+          const alert = `<script>window.alert("You entered an invalid username");</script>`;
+          res.send(alert);
         }
       });
     } else {
       res.redirect('/login');
     }
+
   });
   
+
+  
+  
+
+  
+  
+  
+
   app.get('/feed', function (req, res) {
-    
     const username = req.session.username;
+  
     const sql = 'SELECT userid FROM users WHERE username = ?';
     connection.query(sql, [username], (err, userids) => {
       if (err) {
@@ -116,6 +122,7 @@ app.post('/login', function (req, res) {
         res.status(500).send('Internal server error');
         return;
       }
+  
       const userid = userids[0].userid;
   
       const sql3 = 'SELECT frienduserid FROM friends WHERE userid = ?';
@@ -135,11 +142,15 @@ app.post('/login', function (req, res) {
   
         const placeholders = friendUserIds.map(() => '?').join(',');
         const query = `
-          SELECT posts.title, posts.content, users.username FROM posts
+          SELECT posts.postid, posts.title, posts.content, posts.topic, users.username, COUNT(likes.likeid) AS likeCount
+          FROM posts
           INNER JOIN users ON posts.userid = users.userid
+          LEFT JOIN likes ON posts.postid = likes.postid
           WHERE posts.userid IN (${placeholders})
+          GROUP BY posts.postid, posts.title, posts.content, posts.topic, users.username
         `;
-        connection.query(query, friendUserIds, (error, results) => {
+        const queryParams = friendUserIds;
+        connection.query(query, queryParams, (error, results) => {
           if (error) {
             console.error('Error fetching data from MySQL database: ', error);
             res.status(500).send('Internal server error');
@@ -151,14 +162,23 @@ app.post('/login', function (req, res) {
             postsHTML = '<p>Nothing new here.</p>';
           } else {
             for (const post of results) {
+              const likeButton = `
+                <form method="POST" action="/like">
+                  <input type="hidden" name="postid" value="${post.postid}">
+                  <button type="submit">${post.likeCount > 0 ? 'Unlike' : 'Like'}</button>
+                </form>
+              `;
+  
               postsHTML += `
                 <article>
                   <header>
+
                     <h2>${post.title}</h2>
                     <p class="account-name">${post.username}</p>
                   </header>
                   <p class="post-content">${post.content}</p>
-                  <button class="like-button">Like</button>
+                  <p class="likes-count">Likes: ${post.likeCount}</p>
+                  ${likeButton}
                 </article>
               `;
             }
@@ -177,13 +197,12 @@ app.post('/login', function (req, res) {
                 </header>
                 <nav>
                   <ul>
-                    <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/notification">Notification</a></li>
-
+                  <li><a href="/feed">Home</a></li>
+                  <li><a href="/post">Post</a></li>
+                  <li><a href="/search">Search</a></li>
+                  <li><a href="/notification">Notification</a></li>
+                  <li><a href="/people">People</a></li>
+                  <li><a href="/profile">Profile</a></li>
                   </ul>
                 </nav>
                 <main>
@@ -195,8 +214,88 @@ app.post('/login', function (req, res) {
         });
       });
     });
-  
   });
+  
+  
+  
+  
+app.post('/like', function (req, res) {
+  const username = req.session.username;
+  const postid = req.body.postid;
+
+  const sql = 'SELECT userid FROM users WHERE username = ?';
+  connection.query(sql, [username], function (err, userids) {
+    if (err) {
+      console.error('Error fetching data from MySQL database: ', err);
+      res.status(500).send('Internal server error');
+      return;
+    }
+
+    const userid = userids[0].userid;
+
+    const selectQuery = 'SELECT likeid FROM likes WHERE postid = ? AND userid = ?';
+    connection.query(selectQuery, [postid, userid], function (error, like) {
+      if (error) {
+        console.error('Error fetching data from MySQL database: ', error);
+        res.status(500).send('Internal server error');
+        return;
+      }
+
+      if (like.length === 0) {
+        // User wants to like the post
+        const insertQuery = 'INSERT INTO likes (postid, userid) VALUES (?, ?)';
+        connection.query(insertQuery, [postid, userid], function (insertError) {
+          if (insertError) {
+            console.error('Error inserting data into MySQL database: ', insertError);
+            res.status(500).send('Internal server error');
+          } else {
+            // Handle the successful like
+            // Get post owner's user ID from the posts table
+            const postOwnerQuery = 'SELECT userid FROM posts WHERE postid = ?';
+            connection.query(postOwnerQuery, [postid], function (ownerError, ownerResults) {
+              if (ownerError) {
+                console.error('Error fetching post owner data from MySQL database: ', ownerError);
+                res.status(500).send('Internal server error');
+                return;
+              }
+
+              const postOwnerId = ownerResults[0].userid;
+
+              // Update notification for the post owner
+              const notificationQuery = 'INSERT INTO notifications (userid, senderid, type, message) VALUES (?, ?, ?, ?)';
+              const notificationValues = [postOwnerId, userid, 'like', 'Your post has been liked by ' + username];
+              connection.query(notificationQuery, notificationValues, function (notificationError) {
+                if (notificationError) {
+                  console.error('Error inserting notification into MySQL database: ', notificationError);
+                  res.status(500).send('Internal server error');
+                } else {
+                  res.redirect('/feed');
+                }
+              });
+            });
+          }
+        });
+      } else {
+        // User wants to unlike the post
+        const deleteQuery = 'DELETE FROM likes WHERE likeid = ?';
+        connection.query(deleteQuery, [like[0].likeid], function (deleteError) {
+          if (deleteError) {
+            console.error('Error deleting data from MySQL database: ', deleteError);
+            res.status(500).send('Internal server error');
+          } else {
+            // Handle the successful unlike
+            res.redirect('/feed');
+          }
+        });
+      }
+    });
+  });
+});
+
+  
+  
+  
+
   
   app.get('/search', function (req, res) {
     const searchedUsername = req.query.username; // Assuming the search input is passed as a query parameter with the name 'username'
@@ -284,11 +383,11 @@ app.post('/login', function (req, res) {
                 <nav>
                   <ul>
                   <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/notification">Notification</a></li>
+                  <li><a href="/post">Post</a></li>
+                  <li><a href="/search">Search</a></li>
+                  <li><a href="/notification">Notification</a></li>
+                  <li><a href="/people">People</a></li>
+                  <li><a href="/profile">Profile</a></li>
                   </ul>
                 </nav>
                 <main>
@@ -314,13 +413,12 @@ app.post('/login', function (req, res) {
   
   
   
-  app.post('/befri', (req, res) => {
+  app.post('/befri', function (req, res) {
     const currentUser = req.session.username;
     const friendUsername = req.body.friendUsername;
   
-    // Retrieve the user ID for the current user
     const currentUserSql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(currentUserSql, [currentUser], (err, currentUserIds) => {
+    connection.query(currentUserSql, [currentUser], function (err, currentUserIds) {
       if (err) {
         console.error('Error fetching data from MySQL database: ', err);
         res.status(500).send('Internal server error');
@@ -333,9 +431,8 @@ app.post('/login', function (req, res) {
       }
       const currentUserId = currentUserIds[0].userid;
   
-      // Retrieve the user ID for the friend user
       const friendUserSql = 'SELECT userid FROM users WHERE username = ?';
-      connection.query(friendUserSql, [friendUsername], (err, friendUserIds) => {
+      connection.query(friendUserSql, [friendUsername], function (err, friendUserIds) {
         if (err) {
           console.error('Error fetching data from MySQL database: ', err);
           res.status(500).send('Internal server error');
@@ -348,20 +445,129 @@ app.post('/login', function (req, res) {
         }
         const friendUserId = friendUserIds[0].userid;
   
-        // Insert a new row into the friends table
         const insertSql = 'INSERT INTO friends (userid, frienduserid) VALUES (?, ?)';
-        connection.query(insertSql, [currentUserId, friendUserId], (error, results) => {
+        connection.query(insertSql, [currentUserId, friendUserId], function (error, results) {
           if (error) {
             console.error('Error inserting data into MySQL database: ', error);
             res.status(500).send('Internal server error');
-            return;
+          } else {
+            // Handle the successful befriending
+            // Update notification for both users
+            const currentUserNotificationQuery = 'INSERT INTO notifications (userid, senderid, type, message) VALUES (?, ?, ?, ?)';
+            const currentUserNotificationValues = [currentUserId, friendUserId, 'friend_request', 'You are now friends with ' + friendUsername];
+            const friendUserNotificationQuery = 'INSERT INTO notifications (userid, senderid, type, message) VALUES (?, ?, ?, ?)';
+            const friendUserNotificationValues = [friendUserId, currentUserId, 'friend_request', currentUser + ' is now following you'];
+            connection.query(currentUserNotificationQuery, currentUserNotificationValues, function (notificationError) {
+              if (notificationError) {
+                console.error('Error inserting notification into MySQL database: ', notificationError);
+                res.status(500).send('Internal server error');
+              } else {
+                connection.query(friendUserNotificationQuery, friendUserNotificationValues, function (notificationError) {
+                  if (notificationError) {
+                    console.error('Error inserting notification into MySQL database: ', notificationError);
+                    res.status(500).send('Internal server error');
+                  } else {
+                    res.redirect('/search');
+                  }
+                });
+              }
+            });
           }
-          res.redirect(`/search`);
         });
       });
     });
   });
   
+  
+  
+
+  
+  app.get('/notification', function (req, res) {
+    const username = req.session.username;
+  
+    const s1 = 'SELECT userid FROM users WHERE username = ?';
+    connection.query(s1, [username], (err, userId) => {
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        res.status(500).send('Internal server error');
+        return;
+      }
+  
+      const user_id = userId[0].userid; // Extract the user ID from the query result
+  
+      const sql = `
+      
+         SELECT notifications.notificationid, notifications.type, notifications.message,
+             users.username, notifications.created_at
+         FROM notifications
+        INNER JOIN users ON notifications.userid = users.userid
+        WHERE notifications.userid = ?
+        ORDER BY notifications.created_at DESC
+        LIMIT 10
+    
+    
+      `;
+      connection.query(sql, [user_id], (err, results) => {
+        if (err) {
+          console.error('Error fetching data from MySQL database: ', err);
+          res.status(500).send('Internal server error');
+          return;
+        }
+  
+        let notificationsHTML = '';
+        if (results.length === 0) {
+          notificationsHTML = '<p>No new notifications.</p>';
+        } else {
+          for (const notification of results) {
+            const notificationType = notification.type;
+            const notificationMessage = notification.message;
+            const senderUsername = notification.username;
+            const createdAt = notification.created_at;
+  
+            notificationsHTML += `
+              <article>
+                <header>
+                  <h2>${notificationType}</h2>
+                  <p class="timestamp">${createdAt}</p>
+                </header>
+                <p class="notification-content">
+                  <strong>${senderUsername}</strong> ${notificationMessage}
+                </p>
+              </article>
+            `;
+          }
+        }
+  
+        res.send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Notifications</title>
+              <link rel="stylesheet" href="/notification.css">
+            </head>
+            <body>
+              <header>
+                <h1>Notifications</h1>
+              </header>
+              <nav>
+                <ul>
+                  <li><a href="/feed">Home</a></li>
+                  <li><a href="/post">Post</a></li>
+                  <li><a href="/search">Search</a></li>
+                  <li class="active"><a href="/notification">Notification</a></li>
+                  <li><a href="/people">People</a></li>
+                  <li><a href="/profile">Profile</a></li>
+                </ul>
+              </nav>
+              <main>
+                ${notificationsHTML}
+              </main>
+            </body>
+          </html>
+        `);
+      });
+    });
+  });
   
   
   
@@ -458,11 +664,11 @@ app.post('/login', function (req, res) {
               <nav>
                   <ul>
                   <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/notification">Notification</a></li>
+                  <li><a href="/post">Post</a></li>
+                  <li><a href="/search">Search</a></li>
+                  <li><a href="/notification">Notification</a></li>
+                  <li><a href="/people">People</a></li>
+                  <li><a href="/profile">Profile</a></li>
                   </ul>
                 </nav>
                 <h1>Connect with People who Share your Interests</h1>
@@ -478,10 +684,8 @@ app.post('/login', function (req, res) {
       });
     });
   });
-  
-
-  const util = require('util');
-  const queryPromise = util.promisify(connection.query).bind(connection);
+    const util = require('util');
+    const queryPromise = util.promisify(connection.query).bind(connection);
   
 
 
@@ -508,8 +712,8 @@ app.post('/login', function (req, res) {
         FROM users u
         JOIN interests i ON u.userid = i.userid
         JOIN profile p ON p.userid = u.userid
-        JOIN posts f ON f.userid = u.userid
         LEFT JOIN friends friend ON friend.userid = u.userid
+        LEFT JOIN posts f ON f.userid = u.userid
         WHERE u.userid = ?
         GROUP BY u.userid, u.username, p.name, i.interest1, i.interest2, i.interest3, i.interest4, i.interest5, f.title, f.content, f.topic
       `;
@@ -546,11 +750,13 @@ app.post('/login', function (req, res) {
             };
           }
   
-          postsByUser[username].posts.push({
-            title,
-            content,
-            topic,
-          });
+          if (title && content && topic) {
+            postsByUser[username].posts.push({
+              title,
+              content,
+              topic,
+            });
+          }
         });
   
         const htmlPosts = Object.keys(postsByUser).map((username) => {
@@ -560,15 +766,22 @@ app.post('/login', function (req, res) {
           const interestsHTML = interests.map((interest) => `<li>${interest}</li>`).join('');
   
           // Generate HTML for each post
-          const postsHTML = posts
-            .map((post) => `
-              <div class="post">
-                <h3>${post.title}</h3>
-                <h5>${post.topic}</h5>
-                <p>${post.content}</p>
-              </div>
-            `)
-            .join('');
+          let postsHTML = '';
+          if (posts.length > 0) {
+            postsHTML = posts
+              .map(
+                (post) => `
+                  <div class="post">
+                    <h3>${post.title}</h3>
+                    <h5>${post.topic}</h5>
+                    <p>${post.content}</p>
+                  </div>
+                `
+              )
+              .join('');
+          } else {
+            postsHTML = '<p>No posts yet.</p>';
+          }
   
           return `
             <div class="profile">
@@ -595,11 +808,11 @@ app.post('/login', function (req, res) {
             <nav>
                   <ul>
                   <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/notification">Notification</a></li>
+                  <li><a href="/post">Post</a></li>
+                  <li><a href="/search">Search</a></li>
+                  <li><a href="/notification">Notification</a></li>
+                  <li><a href="/people">People</a></li>
+                  <li><a href="/profile">Profile</a></li>
                   </ul>
                 </nav>
               ${htmlPosts.join('')}
@@ -614,6 +827,7 @@ app.post('/login', function (req, res) {
   
   
   
+  
 
 
 
@@ -622,10 +836,13 @@ app.post('/login', function (req, res) {
   app.post('/connect', (req, res) => {
     const currentUser = req.session.username;
     const friendUser = req.body.friendUsername;
-    
+  
     // Retrieve the user IDs for the current user and friend user
-    const sql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(sql, [currentUser], (err, currentUserIds) => {
+    const getUserIDQuery = 'SELECT userid FROM users WHERE username = ?';
+    const insertFriendQuery = 'INSERT INTO friends (userid, frienduserid) VALUES (?, ?)';
+    const insertNotificationQuery = 'INSERT INTO notifications (userid, senderid, type, message, created_at) VALUES (?, ?, ?, ?, ?)';
+  
+    connection.query(getUserIDQuery, [currentUser], (err, currentUserIds) => {
       if (err) {
         console.error('Error fetching data from MySQL database: ', err);
         res.status(500).send('Internal server error');
@@ -637,7 +854,7 @@ app.post('/login', function (req, res) {
       }
       const currentUserId = currentUserIds[0].userid;
   
-      connection.query(sql, [friendUser], (err, friendUserIds) => {
+      connection.query(getUserIDQuery, [friendUser], (err, friendUserIds) => {
         if (err) {
           console.error('Error fetching data from MySQL database: ', err);
           res.status(500).send('Internal server error');
@@ -650,21 +867,40 @@ app.post('/login', function (req, res) {
         const friendUserId = friendUserIds[0].userid;
   
         // Insert a new row into the friends table
-        const query = 'INSERT INTO friends (userid, frienduserid) VALUES (?, ?)';
-        connection.query(query, [currentUserId, friendUserId], (error, results) => {
+        connection.query(insertFriendQuery, [currentUserId, friendUserId], (error, results) => {
           if (error) {
             console.error('Error inserting data into MySQL database: ', error);
             res.status(500).send('Internal server error');
             return;
           }
-          res.redirect('/people');
+  
+          // Create a notification for the current user
+          const currentNotificationValues = [currentUserId, friendUserId, 'friend_request', `You are now friends with ${friendUser}`, new Date()];
+          connection.query(insertNotificationQuery, currentNotificationValues, (notificationError) => {
+            if (notificationError) {
+              console.error('Error inserting notification into MySQL database: ', notificationError);
+              res.status(500).send('Internal server error');
+              return;
+            }
+  
+            // Create a notification for the friend user
+            const friendNotificationValues = [friendUserId, currentUserId, 'friend_request', `${currentUser} have followed you`, new Date()];
+            connection.query(insertNotificationQuery, friendNotificationValues, (notificationError) => {
+              if (notificationError) {
+                console.error('Error inserting notification into MySQL database: ', notificationError);
+                res.status(500).send('Internal server error');
+                return;
+              }
+  
+              res.redirect('/people');
+            });
+          });
         });
       });
     });
   });
   
-
-
+  
 
   // Express route handler
 app.get('/post', function (req, res) {
@@ -672,56 +908,57 @@ app.get('/post', function (req, res) {
     
 });
 
+
+
 app.post('/post', function (req, res) {
-  const { title, content, topic } = req.body;
-  const username = req.session.username;
+    const { title, content, topic } = req.body;
+    const username = req.session.username;
   
-  const sql = 'SELECT userid FROM users WHERE username = ?';
-  connection.query(sql, [username], (err, userids) => {
-    if (err) {
-      console.error('Error fetching data from MySQL database: ', err);
-      res.status(500).send('Internal server error');
-      return;
-    }
-    
-    const userid = userids[0].userid;
-
-    if (title && content && topic) {
-      const insertPostQuery = 'INSERT INTO posts (userid, title, content, topic) VALUES (?, ?, ?, ?)';
-      connection.query(insertPostQuery, [userid, title, content, topic], (err5, result) => {
-        if (err5) {
-          console.error('Error inserting data into MySQL database: ', err5);
-          res.status(500).send('Internal server error');
-          return;
-        }
-        
-        res.send(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Post Submitted</title>
-              <link rel="stylesheet" href="post.css">
-            </head>
-            <body>
-              <header>
-                <h1>Post Submitted</h1>
-              </header>
-              <main>
-                <p>Thank you for submitting your post!</p>
-                <p>Title: ${title}</p>
-                <p>Content: ${content}</p>
-                <p>Topic: ${topic}</p>
-              </main>
-            </body>
-          </html>
-        `);
-      });
-    } else {
-      res.status(400).send('Missing required fields');
-    }
+    const sql = 'SELECT userid FROM users WHERE username = ?';
+    connection.query(sql, [username], (err, userids) => {
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        res.status(500).send('Internal server error');
+        return;
+      }
+  
+      const userid = userids[0].userid;
+  
+      if (title && content && topic) {
+        const insertPostQuery = 'INSERT INTO posts (userid, title, content, topic) VALUES (?, ?, ?, ?)';
+        connection.query(insertPostQuery, [userid, title, content, topic], (err5, result) => {
+          if (err5) {
+            console.error('Error inserting data into MySQL database: ', err5);
+            res.status(500).send('Internal server error');
+            return;
+          }
+  
+          res.send(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Post Submitted</title>
+                <link rel="stylesheet" href="post.css">
+              </head>
+              <body>
+                <header>
+                  <h1>Post Submitted</h1>
+                </header>
+                <main>
+                  <p>Thank you for submitting your post!</p>
+                  <p>Title: ${title}</p>
+                  <p>Content: ${content}</p>
+                  <p>Topic: ${topic}</p>
+                </main>
+              </body>
+            </html>
+          `);
+        });
+      } else {
+        res.status(400).send('Missing required fields');
+      }
+    });
   });
-});
-
 
   
   
@@ -901,7 +1138,7 @@ app.get('/similar', (req, res) => {
 
       const userInterests = Array.from(userInterestSet);
 
-      connection.query(findSimilarUsersQuery, [userInterests, userInterests, userInterests, userInterests, userInterests, userID], (err, results) => {
+      connection.query(findSimilarUsersQuery, [userInterests, userInterests, userInterests, userInterests, userInterests, userID, userID], (err, results) => {
         if (err) {
           console.error('Error fetching similar interests from MySQL database: ', err);
           return res.status(500).send('Internal server error');
@@ -942,40 +1179,68 @@ app.get('/similar', (req, res) => {
   });
 });
 
-
-
-
 app.post('/follow', (req, res) => {
   const currentUser = req.session.username;
-  const friendUser = req.body.friendUsername; // Corrected variable name
+  const friendUser = req.body.friendUsername;
 
   // Retrieve the user IDs for the current user and friend user
-  const sql = 'SELECT userid FROM users WHERE username = ?';
-  connection.query(sql, [currentUser], (err, currentUserIds) => {
+  const getUserIDQuery = 'SELECT userid FROM users WHERE username = ?';
+  const insertFriendQuery = 'INSERT INTO friends (userid, frienduserid) VALUES (?, ?)';
+  const insertNotificationQuery = 'INSERT INTO notifications (userid, senderid, type, message, created_at) VALUES (?, ?, ?, ?, ?)';
+
+  connection.query(getUserIDQuery, [currentUser], (err, currentUserIds) => {
     if (err) {
       console.error('Error fetching data from MySQL database: ', err);
       res.status(500).send('Internal server error');
       return;
     }
+    if (currentUserIds.length === 0) {
+      // Handle case when no user with the current username is found
+      return res.status(404).send('Current user not found');
+    }
     const currentUserId = currentUserIds[0].userid;
 
-    connection.query(sql, [friendUser], (err, friendUserIds) => {
+    connection.query(getUserIDQuery, [friendUser], (err, friendUserIds) => {
       if (err) {
         console.error('Error fetching data from MySQL database: ', err);
         res.status(500).send('Internal server error');
         return;
       }
+      if (friendUserIds.length === 0) {
+        // Handle case when no user with the friend username is found
+        return res.status(404).send('Friend user not found');
+      }
       const friendUserId = friendUserIds[0].userid;
 
       // Insert a new row into the friends table
-      const query = 'INSERT INTO friends (userid, frienduserid) VALUES (?, ?)';
-      connection.query(query, [currentUserId, friendUserId], (error, results) => {
+      connection.query(insertFriendQuery, [currentUserId, friendUserId], (error, results) => {
         if (error) {
           console.error('Error inserting data into MySQL database: ', error);
           res.status(500).send('Internal server error');
           return;
         }
-        res.redirect('/similar');
+
+        // Create a notification for the current user
+        const currentNotificationValues = [currentUserId, friendUserId, 'friend_request', `You are now friends with ${friendUser}`, new Date()];
+        connection.query(insertNotificationQuery, currentNotificationValues, (notificationError) => {
+          if (notificationError) {
+            console.error('Error inserting notification into MySQL database: ', notificationError);
+            res.status(500).send('Internal server error');
+            return;
+          }
+
+          // Create a notification for the friend user
+          const friendNotificationValues = [friendUserId, currentUserId, 'friend_request', `${currentUser} is following you`, new Date()];
+          connection.query(insertNotificationQuery, friendNotificationValues, (notificationError) => {
+            if (notificationError) {
+              console.error('Error inserting notification into MySQL database: ', notificationError);
+              res.status(500).send('Internal server error');
+              return;
+            }
+
+            res.redirect('/similar');
+          });
+        });
       });
     });
   });

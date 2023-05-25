@@ -1,0 +1,86 @@
+/* notification.css */
+
+/* Reset default styles */
+html,
+body,
+ul,
+li,
+h1,
+h2,
+p {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+body {
+  font-family: Arial, sans-serif;
+}
+
+/* Page layout */
+header {
+  background-color: #333;
+  color: #fff;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 24px;
+}
+
+nav {
+  background-color: #f1f1f1;
+  padding: 10px;
+}
+
+nav ul {
+  display: flex;
+  justify-content: center;
+}
+
+nav li {
+  margin: 0 10px;
+}
+
+nav a {
+  text-decoration: none;
+  color: #333;
+  font-weight: bold;
+}
+
+main {
+  margin: 20px;
+}
+
+/* Notification styles */
+article {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f1f1f1;
+  border-radius: 4px;
+}
+
+header h2 {
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
+.timestamp {
+  color: #777;
+  font-size: 12px;
+}
+
+.notification-content {
+  margin-top: 10px;
+}
+
+.notification-content strong {
+  font-weight: bold;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  header h1 {
+    font-size: 20px;
+  }
+}
