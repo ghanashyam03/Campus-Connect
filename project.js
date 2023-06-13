@@ -63,14 +63,27 @@ app.get('/', function (req, res) {
     }
   });
 
+  const checkLoggedIn = async(req, res, next) => {
+    try {
+      console.log(req.session.loggedin === "true")
+      if(req.session.loggedin === true){
+        res.redirect('/feed')
+      }else{
+        next()
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
-app.get('/login', function (req, res) {
-  
+app.get('/login', checkLoggedIn, function (req, res) {
+   
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
     
   });
   
   
+
   
 
   app.post('/login', function (req, res) {
@@ -108,11 +121,22 @@ app.get('/login', function (req, res) {
   
   
 
-  
+  // Middleware function to check if the user is logged in
+const requireLogin = (req, res, next) => {
+  if (req.session.loggedin) {
+    // User is logged in, proceed to the next middleware or route handler
+    next();
+  } else {
+    // User is not logged in, redirect to the login page
+    res.redirect('/login');
+  }
+};
+
+
   
   
 
-  app.get('/feed', function (req, res) {
+  app.get('/feed', requireLogin, function (req, res) {
     const username = req.session.username;
   
     const sql = 'SELECT userid FROM users WHERE username = ?';
@@ -297,7 +321,7 @@ app.post('/like', function (req, res) {
   
 
   
-  app.get('/search', function (req, res) {
+  app.get('/search', requireLogin, function (req, res) {
     const searchedUsername = req.query.username; // Assuming the search input is passed as a query parameter with the name 'username'
   
     // Retrieve the current user ID
@@ -482,7 +506,7 @@ app.post('/like', function (req, res) {
   
 
   
-  app.get('/notification', function (req, res) {
+  app.get('/notification', requireLogin, function (req, res) {
     const username = req.session.username;
   
     const s1 = 'SELECT userid FROM users WHERE username = ?';
@@ -575,7 +599,7 @@ app.post('/like', function (req, res) {
   
 
   
-  app.get('/people', function(req, res) {
+  app.get('/people',  requireLogin, function(req, res) {
     const username = req.session.username;
   
     const getUserIDQuery = 'SELECT userid FROM users WHERE username = ?';
@@ -689,7 +713,7 @@ app.post('/like', function (req, res) {
   
 
 
-  app.get('/profile', (req, res) => {
+  app.get('/profile', requireLogin, (req, res) => {
     const username = req.session.username;
   
     const getUserIDQuery = 'SELECT userid FROM users WHERE username = ?';
@@ -813,7 +837,12 @@ app.post('/like', function (req, res) {
                   <li><a href="/notification">Notification</a></li>
                   <li><a href="/people">People</a></li>
                   <li><a href="/profile">Profile</a></li>
+                   
                   </ul>
+
+                  <form method ="POST" action ="/logout">
+                  <button type ="submit"> LOGOUT </button>
+                  </form>
                 </nav>
               ${htmlPosts.join('')}
             </body>
@@ -826,7 +855,18 @@ app.post('/like', function (req, res) {
   
   
   
-  
+  app.post('/logout', (req, res) => {
+    // Destroy the session
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Error destroying session: ', err);
+        return res.status(500).send('Internal server error');
+      }
+      
+      // Redirect to the '/' page
+      res.redirect('/');
+    });
+  });
   
 
 
@@ -903,7 +943,7 @@ app.post('/like', function (req, res) {
   
 
   // Express route handler
-app.get('/post', function (req, res) {
+app.get('/post', requireLogin, function (req, res) {
   res.sendFile(path.join(__dirname, 'public', 'post.html'));
     
 });
