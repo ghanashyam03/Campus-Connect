@@ -31,7 +31,7 @@ app.get('/', function (req, res) {
   });
   
   app.get('/signup', function (req, res) {
-    res.sendFile(path.join(__dirname , 'public' , 'signup.html'));
+    res.sendFile(path.join(__dirname , 'public' , 'logsign.html'));
   });
   
   app.post('/signup', function (req, res) {
@@ -64,7 +64,7 @@ app.get('/', function (req, res) {
   });
 
   const checkLoggedIn = async(req, res, next) => {
-    try {
+    try  {
       console.log(req.session.loggedin === "true")
       if(req.session.loggedin === true){
         res.redirect('/feed')
@@ -78,7 +78,7 @@ app.get('/', function (req, res) {
 
 app.get('/login', checkLoggedIn, function (req, res) {
    
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.sendFile(path.join(__dirname, 'public', 'logsign.html'));
     
   });
   
@@ -1210,7 +1210,7 @@ app.get('/similar', (req, res) => {
               <ul>
                 ${response}
               </ul>
-              <a href="/">Home</a>
+              <a href="/feed">Home</a>
             </body>
           </html>
         `);
