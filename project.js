@@ -222,6 +222,7 @@ const requireLogin = (req, res, next) => {
                 <nav>
                   <ul>
                   <li><a href="/feed">Home</a></li>
+                  <li><a href="/chat">Chats</a></li>
                   <li><a href="/post">Post</a></li>
                   <li><a href="/search">Search</a></li>
                   <li><a href="/notification">Notification</a></li>
@@ -242,6 +243,167 @@ const requireLogin = (req, res, next) => {
   
   
   
+  app.get('/chat', requireLogin, function (req, res) {
+    const username = req.session.username;
+  
+    const sql = 'SELECT userid FROM users WHERE username = ?';
+    connection.query(sql, [username], (err, userids) => {
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        return res.status(500).send('Internal server error');
+      }
+  
+      const currentUserID = userids[0].userid;
+  
+      const sql2 = `
+        SELECT users.userid, users.username
+        FROM users
+        INNER JOIN chat ON users.userid = chat.receiverid OR users.userid = chat.senderid
+        WHERE chat.receiverid = ? OR chat.senderid = ?
+        GROUP BY users.userid, users.username
+      `;
+      connection.query(sql2, [currentUserID, currentUserID], (err, chats) => {
+        if (err) {
+          console.error('Error fetching data from MySQL database: ', err);
+          return res.status(500).send('Internal server error');
+        }
+  
+        res.send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>My Chats</title>
+              <link rel="stylesheet" href="chat.css">
+            </head>
+            <body>
+              <header>
+                <h1>My Chats</h1>
+              </header>
+              <nav>
+                <ul>
+                  <li><a href="/feed">Home</a></li>
+                  <li><a href="/chat">Chats</a></li>
+                  <li><a href="/post">Post</a></li>
+                  <li><a href="/search">Search</a></li>
+                  <li><a href="/notification">Notification</a></li>
+                  <li><a href="/people">People</a></li>
+                  <li><a href="/profile">Profile</a></li>
+                </ul>
+              </nav>
+              <main>
+                <ul class="chat-list">
+                  ${chats.map(chat => `<li><a href="/chat/${chat.userid}">${chat.username}</a></li>`).join('')}
+                </ul>
+              </main>
+            </body>
+          </html>
+        `);
+      });
+    });
+  });
+  
+  app.get('/chat/:userid', requireLogin, function (req, res) {
+  const otherUserID = req.params.userid;
+  const username = req.session.username;
+
+  const sql = 'SELECT userid FROM users WHERE username = ?';
+  connection.query(sql, [username], (err, userids) => {
+    if (err) {
+      console.error('Error fetching data from MySQL database: ', err);
+      return res.status(500).send('Internal server error');
+    }
+
+    const currentUserID = userids[0].userid;
+    const sql2 = `
+      SELECT chat.*, 
+             sender.username AS senderusername, 
+             receiver.username AS receiverusername
+      FROM chat
+      INNER JOIN users AS sender ON sender.userid = chat.senderid
+      INNER JOIN users AS receiver ON receiver.userid = chat.receiverid
+      WHERE (chat.senderid = ? AND chat.receiverid = ?) OR (chat.senderid = ? AND chat.receiverid = ?)
+      ORDER BY chat.timestamp ASC
+    `;
+    connection.query(sql2, [currentUserID, otherUserID, otherUserID, currentUserID], (err, messages) => {
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        return res.status(500).send('Internal server error');
+      }
+
+      let otherusername = '';
+      if (messages.length > 0) {
+        if (messages[0].senderid === currentUserID && messages[0].receiverid === currentUserID) {
+          otherusername = username; // Current user is chatting with themselves
+        } else {
+          otherusername = messages[0].senderid === currentUserID ? messages[0].receiverusername : messages[0].senderusername;
+        }
+      } else {
+        otherusername = username; // No messages, current user is chatting with themselves
+      }
+
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${otherusername}</title>
+            <link rel="stylesheet" href="/chatwith.css">
+          </head>
+          <body>
+            <nav>
+              <ul>
+                <li><a href="/chat">Back</a></li>
+              </ul>
+            </nav>
+            <main>
+              <h3>${otherusername}</h3>
+              <ul class="message-list">
+                ${messages.map(message => `<li>${message.senderusername}: ${message.message}</li>`).join('')}
+              </ul>
+              <form method="POST" action="/chatwith/${otherUserID}">
+                <input type="text" name="message" placeholder="Type your message" required>
+                <button type="submit">Send</button>
+              </form>
+            </main>
+          </body>
+        </html>
+      `);
+    });
+  });
+});
+
+  
+  
+  
+  app.post('/chatwith/:userid', requireLogin, function (req, res) {
+  
+    const otherUserID = req.params.userid;
+    const message = req.body.message;
+    const username = req.session.username;
+  
+    const sql = 'SELECT userid FROM users WHERE username = ?';
+    connection.query(sql, [username], (err, userids) => {
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        res.status(500).send('Internal server error');
+        return;
+      }
+  
+      const currentUserID = userids[0].userid;
+      const sql2 = 'INSERT INTO chat (senderid, receiverid, message) VALUES (?, ?, ?)';
+      connection.query(sql2, [currentUserID, otherUserID, message], (err) => {
+        if (err) {
+          console.error('Error inserting data into MySQL database: ', err);
+          res.status(500).send('Internal server error');
+          return;
+        }
+  
+        res.redirect(`/chat/${otherUserID}`);
+      });
+    });
+  });
+
+
+
   
 app.post('/like', function (req, res) {
   const username = req.session.username;
@@ -321,7 +483,7 @@ app.post('/like', function (req, res) {
   
 
   
-  app.get('/search', requireLogin, function (req, res) {
+app.get('/search', requireLogin, function (req, res) {
     const searchedUsername = req.query.username; // Assuming the search input is passed as a query parameter with the name 'username'
   
     // Retrieve the current user ID
@@ -366,23 +528,22 @@ app.post('/like', function (req, res) {
             for (const result of results) {
               const isFollowingUser = followingUserIds.includes(result.userid);
               const isCurrentUser = result.userid === currentUserId;
-              
+  
               searchResultsHTML += `
                 <article>
                   <header>
                     <h2>@${result.username}</h2>
                     <p>${result.name}</p>
                   </header>
-    
+  
+                  <a href="/friendprofile/${result.userid}">View Profile</a>
+  
                   <form method="POST" action="/befri">
                     <input type="hidden" name="friendUsername" value="${result.username}">
-                    ${
-                      isCurrentUser
-                        ? '<button type="button" class="follow-button">You</button>'
-                        : isFollowingUser
-                        ? '<button type="button" class="follow-button">Following</button>'
-                        : '<button type="submit" class="follow-button">Follow</button>'
-                    }
+                    <button type="submit" class="follow-button" ${
+                      isCurrentUser ? 'disabled' : ''}>
+                      ${isCurrentUser ? 'You' : isFollowingUser ? 'Following' : 'Follow'}
+                    </button>
                   </form>
                 </article>
               `;
@@ -406,12 +567,12 @@ app.post('/like', function (req, res) {
                 </header>
                 <nav>
                   <ul>
-                  <li><a href="/feed">Home</a></li>
-                  <li><a href="/post">Post</a></li>
-                  <li><a href="/search">Search</a></li>
-                  <li><a href="/notification">Notification</a></li>
-                  <li><a href="/people">People</a></li>
-                  <li><a href="/profile">Profile</a></li>
+                    <li><a href="/feed">Home</a></li>
+                    <li><a href="/post">Post</a></li>
+                    <li><a href="/search">Search</a></li>
+                    <li><a href="/notification">Notification</a></li>
+                    <li><a href="/people">People</a></li>
+                    <li><a href="/profile">Profile</a></li>
                   </ul>
                 </nav>
                 <main>
@@ -432,8 +593,243 @@ app.post('/like', function (req, res) {
         }
       });
     });
-
   });
+  
+  app.get('/friendprofile/:userid', requireLogin, function (req, res) {
+    const profileUserId = req.params.userid;
+    const currentUser = req.session.username;
+    const currentUserSql = 'SELECT userid, username FROM users WHERE username = ?'; // Add username to the SELECT query
+    connection.query(currentUserSql, [currentUser], (err, currentUserData) => { // Change currentUserIds to currentUserData
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        res.status(500).send('Internal server error');
+        return;
+      }
+  
+      const currentUserId = currentUserData[0].userid;
+      const isCurrentUser = currentUserId === profileUserId; // Check if the current user is viewing their own profile
+      const username = currentUserData[0].username; // Retrieve the username
+  
+      // Retrieve the profile details of the selected user using the profileUserId
+      const getDetailsQuery = `
+        SELECT u.username, p.name, COUNT(friend.frienduserid) AS friendcount,
+          CASE WHEN i.interest1 IS NOT NULL THEN i.interest1 ELSE '' END AS interest1,
+          CASE WHEN i.interest2 IS NOT NULL THEN i.interest2 ELSE '' END AS interest2,
+          CASE WHEN i.interest3 IS NOT NULL THEN i.interest3 ELSE '' END AS interest3,
+          CASE WHEN i.interest4 IS NOT NULL THEN i.interest4 ELSE '' END AS interest4,
+          CASE WHEN i.interest5 IS NOT NULL THEN i.interest5 ELSE '' END AS interest5,
+          f.title, f.content, f.topic
+        FROM users u
+        JOIN interests i ON u.userid = i.userid
+        JOIN profile p ON p.userid = u.userid
+        LEFT JOIN friends friend ON friend.userid = u.userid
+        LEFT JOIN posts f ON f.userid = u.userid
+        WHERE u.userid = ?
+        GROUP BY u.userid, u.username, p.name, i.interest1, i.interest2, i.interest3, i.interest4, i.interest5, f.title, f.content, f.topic
+      `;
+      connection.query(getDetailsQuery, [profileUserId], (err, profileResults) => {
+        if (err) {
+          console.error('Error fetching data from MySQL database: ', err);
+          res.status(500).send('Internal server error');
+          return;
+        }
+  
+        const postsByUser = {};
+        profileResults.forEach((result) => {
+          const {
+            username,
+            name,
+            friendcount,
+            interest1,
+            interest2,
+            interest3,
+            interest4,
+            interest5,
+            title,
+            content,
+            topic,
+          } = result;
+  
+          if (!postsByUser[username]) {
+            postsByUser[username] = {
+              name,
+              friendcount,
+              interests: [interest1, interest2, interest3, interest4, interest5].filter((interest) => interest !== ''),
+              posts: [],
+            };
+          }
+  
+          if (title && content && topic) {
+            postsByUser[username].posts.push({
+              title,
+              content,
+              topic,
+            });
+          }
+        });
+  
+        // Check if the current user is following the profile user
+        const isFollowingUserQuery = 'SELECT COUNT(*) AS isFollowing FROM friends WHERE userid = ? AND frienduserid = ?';
+        connection.query(isFollowingUserQuery, [currentUserId, profileUserId], (err, followingResult) => {
+          if (err) {
+            console.error('Error fetching data from MySQL database: ', err);
+            res.status(500).send('Internal server error');
+            return;
+          }
+  
+          const isFollowingUser = followingResult[0].isFollowing === 1;
+  
+          const htmlPosts = Object.keys(postsByUser).map((username) => {
+            const { name, friendcount, interests, posts } = postsByUser[username];
+  
+            // Generate HTML for interests
+            const interestsHTML = interests.map((interest) => `<li>${interest}</li>`).join('');
+  
+            // Generate HTML for each post
+            let postsHTML = '';
+            if (posts.length > 0) {
+              postsHTML = posts
+                .map(
+                  (post) => `
+                    <div class="post">
+                      <h3>${post.title}</h3>
+                      <h5>${post.topic}</h5>
+                      <p>${post.content}</p>
+                    </div>
+                  `
+                )
+                .join('');
+            } else {
+              postsHTML = '<p>No posts yet.</p>';
+            }
+  
+            return `
+              <div class="profile">
+                <h2>@${username}</h2>
+                <h3>${name}</h3>
+                <p>Friends: <span id="friends">${friendcount}</span></p>
+                <h3>Interests:</h3>
+                <ul id="interests">
+                  ${interestsHTML}
+                </ul>
+  
+                <form method="POST" action="/profilefollow">
+                  <input type="hidden" name="friendUsername" value="${username}">
+                  <input type="hidden" name="profileUserId" value="${profileUserId}">
+                  <button type="submit" class="follow-button" ${isCurrentUser ? 'disabled' : ''}>
+                    ${isCurrentUser ? 'You' : isFollowingUser ? 'Following' : 'Follow'}
+                  </button>
+                </form>
+  
+                
+                <button type="submit"><a href="/chat/${profileUserId}">Chat</a></button>
+             
+              
+
+              </div>
+  
+              <h2>All Posts:</h2>
+              ${postsHTML}
+            `;
+          });
+  
+          res.send(`
+            <html>
+              <head>
+                <title>Profile</title>
+                <link rel="stylesheet" type="text/css" href="/friendprofile.css">
+              </head>
+              <body>
+                <nav>
+                  <ul>
+                    <li><a href="/feed">Home</a></li>
+                    <li><a href="/post">Post</a></li>
+                    <li><a href="/search">Search</a></li>
+                    <li><a href="/notification">Notification</a></li>
+                    <li><a href="/people">People</a></li>
+                    <li><a href="/profile">Profile</a></li>
+                  </ul>
+                </nav>
+                ${htmlPosts.join('')}
+              </body>
+            </html>
+          `);
+        });
+      });
+    });
+  });
+  
+  
+  app.post('/profilefollow', function (req, res) {
+    console.log('Profile follow route called');
+    const currentUser = req.session.username;
+    const friendUsername = req.body.friendUsername;
+  
+    const currentUserSql = 'SELECT userid FROM users WHERE username = ?';
+    connection.query(currentUserSql, [currentUser], function (err, currentUserIds) {
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        res.status(500).send('Internal server error');
+        return;
+      }
+      if (currentUserIds.length === 0) {
+        console.error('Current user not found in the database.');
+        res.status(404).send('User not found');
+        return;
+      }
+      const currentUserId = currentUserIds[0].userid;
+      console.log('Current user ID:', currentUserId);
+  
+      const friendUserSql = 'SELECT userid FROM users WHERE username = ?';
+      connection.query(friendUserSql, [friendUsername], function (err, friendUserIds) {
+        if (err) {
+          console.error('Error fetching data from MySQL database: ', err);
+          res.status(500).send('Internal server error');
+          return;
+        }
+        if (friendUserIds.length === 0) {
+          console.error('Friend user not found in the database.');
+          res.status(404).send('User not found');
+          return;
+        }
+        const friendUserId = friendUserIds[0].userid;
+        console.log('Friend user ID:', friendUserId);
+  
+        const insertSql = 'INSERT INTO friends (userid, frienduserid) VALUES (?, ?)';
+        connection.query(insertSql, [currentUserId, friendUserId], function (error, results) {
+          if (error) {
+            console.error('Error inserting data into MySQL database: ', error);
+            res.status(500).send('Internal server error');
+          } else {
+            // Handle the successful following
+            // Update notification for both users
+            const currentUserNotificationQuery = 'INSERT INTO notifications (userid, senderid, type, message) VALUES (?, ?, ?, ?)';
+            const currentUserNotificationValues = [currentUserId, friendUserId, 'friend_request', 'You are now friends with ' + friendUsername];
+            const friendUserNotificationQuery = 'INSERT INTO notifications (userid, senderid, type, message) VALUES (?, ?, ?, ?)';
+            const friendUserNotificationValues = [friendUserId, currentUserId, 'friend_request', currentUser + ' is now following you'];
+            connection.query(currentUserNotificationQuery, currentUserNotificationValues, function (notificationError) {
+              if (notificationError) {
+                console.error('Error inserting notification into MySQL database: ', notificationError);
+                res.status(500).send('Internal server error');
+              } else {
+                connection.query(friendUserNotificationQuery, friendUserNotificationValues, function (notificationError) {
+                  if (notificationError) {
+                    console.error('Error inserting notification into MySQL database: ', notificationError);
+                    res.status(500).send('Internal server error');
+                  } else {
+                    res.redirect(`/friendprofile/${req.body.profileUserId}`);
+                  }
+                });
+              }
+            });
+          }
+        });
+      });
+    });
+  });
+  
+  
+  
   
   
   
@@ -1291,7 +1687,7 @@ app.post('/follow', (req, res) => {
 
 
 
-const port = 3000;
+const port = 5000;
 
 app.listen(port, function () {
   console.log(`Server started on port ${port}`);

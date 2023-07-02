@@ -1,0 +1,50 @@
+/* chat.css */
+
+/* Styles for the chat box */
+.chat-box {
+    background-color: #f1f1f1;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+    color: #333;
+  }
+  
+  .chat-box:hover {
+    background-color: #e0e0e0;
+    cursor: pointer;
+  }
+  
+  .chat-box a {
+    text-decoration: none;
+    color: #333;
+  }
+  
+  .chat-box a:hover {
+    text-decoration: underline;
+  }
+  
+  /* Styles for the chat list */
+  .chat-list {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  .chat-list li {
+    margin-bottom: 5px;
+    padding: 10px;
+    border-radius: 5px;
+  }
+  
+  /* Colors for different chat items */
+  .chat-list li:nth-child(odd) {
+    background-color: #e7f5fe;
+  }
+  
+  .chat-list li:nth-child(even) {
+    background-color: #eef2e6;
+  }
+  
+  .chat-list li:hover {
+    background-color: #d6d6d6;
+  }
+  
