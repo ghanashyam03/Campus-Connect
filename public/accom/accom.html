@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../accom/globalacc.css" />
+  <link rel="stylesheet" href="../accom/accom.css" />
+  <style>
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="Acco">
+    <div class="Titlelogo">
+      <div class="Title">
+        <h5 class="title1">Fill in Your</h5>
+        <h2 class="title2">Accommodation Details</h2>
+      </div>
+      <img class="kolo" src="../accom/logo.png">
+    </div>
+    <form method="POST" action="/moreinfo">
+    <div class="deets">
+      <div class="country-parent">
+        <div class="name">Country</div>
+        <select class="box1" name="country">
+            <option></option>
+            <option>India</option>
+            <option>United States</option>
+            <option>Australia</option>
+            <option>United Kingdom</option>
+          </select>
+      </div>
+      <div class="state-parent hidden">
+        <div class="name">State</div>
+        <select class="box2" name="state">
+          <option></option>
+          <option>Kerala</option>
+          <option>Karnataka</option>
+          <option>Bihar</option>
+          <option>Rajasthan</option>
+          <option>Tamil Nadu</option>
+        </select>
+      </div>
+      <div class="Accomodation-parent">
+        <div class="name">Accommodation Type</div>
+        <label for="option1" class="radio-label">
+          <input type="radio" id="option1" name="accommodation" value="day-scholar">
+          Day Scholar
+        </label>
+        <label for="option2" class="radio-label">
+          <input type="radio" id="option2" name="accommodation" value="pg">
+          Paying guest
+        </label>
+        <label for="option3" class="radio-label">
+          <input type="radio" id="option3" name="accommodation" value="hostel">
+          Hostel
+        </label>
+      </div>
+      <div class="hostel-name hidden">
+        <div class="name">Hostel name</div>
+        <input class="box1" type="text" name="hostel"/>
+      </div>
+      <button onclick="savemore()"   class="submit">Submit</button>
+    </div>
+    </form>
+  </div>
+  <script>
+    const countryInput = document.querySelector('.box1');
+    const stateParent = document.querySelector('.state-parent');
+    const hostelName = document.querySelector('.hostel-name');
+
+    countryInput.addEventListener('change', function() {
+      if (this.value === 'India') {
+        stateParent.classList.remove('hidden');
+      } else {
+        stateParent.classList.add('hidden');
+      }
+    });
+
+    const accommodationTypeInputs = document.querySelectorAll('input[name="options"]');
+    const hostelNameInput = document.querySelector('.box1');
+
+    for (let i = 0; i < accommodationTypeInputs.length; i++) {
+      accommodationTypeInputs[i].addEventListener('change', function() {
+        if (this.value === 'option3') {
+          hostelName.classList.remove('hidden');
+        } else {
+          hostelName.classList.add('hidden');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

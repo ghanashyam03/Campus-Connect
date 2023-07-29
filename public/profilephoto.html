@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile Photo</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+  <h1>Set Profile Photo</h1>
+  <form action="/profilephoto" method="POST" enctype="multipart/form-data">
+    <input type="file" name="profilePhoto" accept="image/*" required>
+    <button type="submit">Set as Profile Photo</button>
+  </form>
+  <form action="/int" method="get">
+    <button type="submit">Skip</button>
+  </form>
+</body>
+</html>

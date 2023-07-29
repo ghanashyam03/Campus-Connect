@@ -30,6 +30,33 @@ ul {
   margin: 0;
 }
 
+/* Navigation Bar Styles */
+nav {
+  background-color: #333;
+  padding: 10px;
+}
+
+nav ul {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav ul li {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+nav ul li a {
+  color: #fff;
+  text-decoration: none;
+}
+
+nav form {
+  display: inline-block;
+  margin-left: 10px;
+}
+
 /* Profile Styles */
 .profile {
   background-color: #fff;
@@ -102,4 +129,34 @@ ul {
 .post p {
   margin-bottom: 0;
   color: #888;
+}
+
+/* Circular Profile Photo */
+.profile-photo-container {
+  width: 150px;
+  height: 150px;
+  overflow: hidden;
+  border-radius: 50%;
+  margin: 0 auto;
+}
+
+.profile-photo-container img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+
+  .profile {
+    padding: 10px;
+  }
+
+  .post {
+    padding: 10px;
+  }
 }

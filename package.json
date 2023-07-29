@@ -53,6 +53,7 @@
     "mime-types": "^2.1.35",
     "minimatch": "^3.1.2",
     "ms": "^2.0.0",
+    "multer": "^1.4.5-lts.1",
     "mysql": "^2.18.1",
     "negotiator": "^0.6.3",
     "node": "^20.2.0",
@@ -75,6 +76,7 @@
     "serve-static": "^1.15.0",
     "setprototypeof": "^1.2.0",
     "side-channel": "^1.0.4",
+    "socket.io": "^4.7.1",
     "sqlstring": "^2.3.1",
     "statuses": "^2.0.1",
     "string_decoder": "^1.1.1",
@@ -85,6 +87,7 @@
     "unpipe": "^1.0.0",
     "util-deprecate": "^1.0.2",
     "utils-merge": "^1.0.1",
+    "uuid": "^9.0.0",
     "vary": "^1.1.2"
   },
   "devDependencies": {

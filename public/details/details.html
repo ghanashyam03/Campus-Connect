@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../details/global.css" />
+    <link rel="stylesheet" href="../details/detail.css" />
+</head>
+<body>
+  
+    <div class="info">
+     
+    <div class="TitleLogo">
+      
+      <div class="Title">
+        <h5 class="title1">Fill in Your</h5>
+        <h2 class="title2">Personal Info</h2></div>
+     <img class="kolo" src="../details/logo.png">
+ </div>
+ <form method="POST" action="/info">
+<div class="details">
+    <div class="name-parent">
+        <div class="name">Name</div>
+          
+          <input class="box"placeholder="Name" name="full"/>
+         
+        </div>
+     
+       <div class="phone-parent">
+        <div class="name">Phone-number</div>
+
+        
+        <input class="box"placeholder ="10 digit mobile number"type="tel" name="phone"/>
+        
+      </div>
+
+      <div class="date-parent">
+        <div class="name">Date of Birth</div>
+          <input class="box"placeholder="dd/mm/yyyy" type="date" name="dateo"/>
+        </div>
+      
+      <div>
+        
+        <div class="gender-parent">
+        <div class="name">Gender</div>
+        
+        <select class="box2" name="sex">
+            <option></option>
+            <option>Female</option>
+            <option>Male</option>
+            <option>Other</option>
+        </select>
+      </div> 
+      <div class="streamsem">
+      <div class="stream-parent">
+        <div class="name">Stream</div>
+          <input class="box2" type="text" name="course"/>
+        </div>
+        <div>
+          <div class="sem-parent"></div>
+            <div class="name">Semester</div>
+            <select class="box3" name="semester">
+                <option></option>
+                <option>1</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+                <option>6</option>
+                <option>7</option>
+                <option>8</option>
+            </select>
+          </div>
+          </div>
+          <div class="adm-parent">
+            <div class="name">Year of Admission</div>
+              <input class="box2" type="number" name="ending"/>
+            </div>
+            </div>
+    
+            <input type="reset" class="reset" value="Reset">
+            <button onclick="saveinfo()" class="submit">Submit</button>
+
+          </form>
+            </div>
+            </div>
+</body>
+</html>
