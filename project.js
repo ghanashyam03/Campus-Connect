@@ -1321,7 +1321,7 @@ app.get('/search', requireLogin, function (req, res) {
               const interestsHTML = generateInterestsHTML(interests);
               const postsHTML = generatePostsHTML(posts);
             
-              // Replace backslashes (\) with forward slashes (/) in the file path
+              
               const profilePhotoPath = profilePhoto.replace(/\\/g, '/');
             
               console.log('Profile Photo Path:', profilePhotoPath); // Add this line for debugging
@@ -1337,6 +1337,9 @@ app.get('/search', requireLogin, function (req, res) {
                   <h3>Interests:</h3>
                   <ul id="interests">
                     ${interestsHTML}
+                    <form method="GET" action="/editint">
+                      <button type="submit">Edit</button>
+                    </form>
                   </ul>
                 </div>
                 <h2>All Posts:</h2>
@@ -1344,9 +1347,6 @@ app.get('/search', requireLogin, function (req, res) {
               `;
             });
             
-            
-
-    
             console.log('HTML Posts:', htmlPosts);
     
             res.send(`
@@ -1389,7 +1389,64 @@ app.get('/search', requireLogin, function (req, res) {
         });
       });
     });
-    
+
+
+    // GET request to render the editint.html form
+app.get('/editint', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'editint.html'));
+});
+
+// POST request to handle updating user interests
+app.post('/editint', function (req, res) {
+  const interests = req.body.interest;
+  console.log('Received interests:', interests); // Debug: Check if interests are received correctly
+
+  // Some code to fetch the user ID based on the session username
+  const username = req.session.username;
+  const getUserIDQuery = 'SELECT userid FROM users WHERE username = ?';
+  connection.query(getUserIDQuery, [username], (err, userIDs) => {
+    if (err) {
+      console.error('Error fetching data from MySQL database: ', err);
+      res.status(500).send('Internal server error');
+      return;
+    }
+
+    if (!Array.isArray(interests)) {
+      interests = [interests];
+    }
+
+    if (!interests) {
+      res.status(400).send('Bad request');
+      return;
+    }
+
+    const userid = userIDs[0]?.userid;
+
+    // Update the interests in the database
+    const updateInterestsQuery = 'UPDATE interests SET interest1 = ?, interest2 = ?, interest3 = ?, interest4 = ?, interest5 = ? WHERE userid = ?';
+    const interestValues = interests.slice(0, 5); // Considering up to 5 interests
+    while (interestValues.length < 5) {
+      interestValues.push(null); // Fill remaining columns with null if fewer than 5 interests are provided
+    }
+
+    connection.query(updateInterestsQuery, [...interestValues, userid], (err, result) => {
+      if (err) {
+        console.error('Error updating data in MySQL database: ', err);
+        res.status(500).send('Internal server error');
+        return;
+      }
+
+      console.log('Interests updated successfully:', result); // Debug: Check the result of the update
+
+      // Update the session information with the new interests
+      req.session.info = true;
+      req.session.interest = interests;
+
+      // Redirect the user back to the profile page
+      res.redirect('/profile');
+    });
+  });
+});
 
     app.post('/DELETE/:postId', requireLogin, (req, res) => {
       const postId = req.params.postId; // Get the postId from the URL parameter
