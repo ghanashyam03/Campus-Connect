@@ -5,6 +5,54 @@ body {
     padding: 0;
     background-color: #f1f1f1;
   }
+
+  .sidebar {
+    width: 250px;
+    background-color: #6f8b6c;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-x: hidden;
+    padding-top: 20px;
+  }
+  
+  .main-content {
+    margin-left: 250px;
+    padding: 20px;
+  }
+  
+  .logo {
+    width: 100%;
+    max-width: 200px; /* Set the desired maximum width for the logo */
+    height: auto;
+  }
+  
+  .image-container {
+    background-color: #6f8b6c;
+    padding: 20px;
+  }
+  
+  .sidebar a {
+    display: block;
+    padding: 12px;
+    text-decoration: none;
+    color: #000;
+  }
+  
+  .sidebar a:hover {
+    background-color: #ddd;
+  }
+  
+  
+  
+  .content {
+  margin-left: 522px;
+  padding: 20px;
+  margin-top: -50px;
+  
+  
+  }
   
   .container {
     max-width: 960px;

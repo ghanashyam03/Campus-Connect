@@ -1,0 +1,226 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Outfit, sans-serif;
+  }
+  
+  .sidebar {
+    width: 250px;
+    background-color: #6f8b6c;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-x: hidden;
+    padding-top: 20px;
+  }
+  
+  .image-logo {
+    width: 150px; /* Set the desired width */
+    height: 50%; /* Set the desired height */
+  }
+  
+  
+  .image-container {
+    background-color: #6f8b6c;
+    padding: 20px;
+  }
+  
+  .sidebar a {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    text-decoration: none;
+    color: #000;
+  }
+  
+  .sidebar a i {
+    margin-right: 10px;
+  }
+  
+  .sidebar a:hover {
+    background-color: #ddd;
+  }
+  
+  .campus {
+    margin-left: 250px;
+    padding: 20px;
+  }
+  
+  .logo-and-profile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #ffffff;
+    color: #000000;
+    padding: 10px;
+  }
+  
+  .logo-and-profile h1 {
+    font-size: 24px;
+    margin: 0;
+  }
+  
+  .logo-and-profile .user-profile {
+    display: flex;
+    align-items: center;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #344031;
+    color: #bed3c5;
+    padding: 10px;
+  }
+  
+  .header h1 {
+    font-size: 24px;
+    margin: 0;
+  }
+  
+  .logo-and-profile .home-icon {
+    font-size: 24px;
+    margin-left: 10px;
+    color: #000;
+    text-decoration: none;
+  }
+  
+  .logo-and-profile .home-icon:hover {
+    color: #bed3c5; /* Change the color on hover if desired */
+  }
+  
+  
+  .profile-picture {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  }
+  
+
+
+ 
+
+
+  
+  .content {
+    margin-left: 250px;
+    padding:20px;
+  }
+  
+/* .card-container {
+    display: flex;
+    justify-content: space-between; 
+  } */
+  
+ 
+  /* .card {
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 300px;
+  } */
+
+
+
+  /* .card-container {
+    display: flex;
+    flex-wrap: wrap; 
+    justify-content: space-between;
+    
+  }
+  
+  .card {
+    
+    border-radius: 8px;
+    width: calc(25% - 20px); 
+    margin: 10px; 
+    align-items: center; 
+    background-color: #f2f2f2;
+    border: 1px solid #ccc;
+    padding: 16px;
+  } */
+    
+  .card-container {
+ 
+  
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start; /* Align cards to the left within the container */
+  }
+  
+  .card {
+    width: 200px;
+    margin: 50px;
+    border-radius: 8px;
+    background-color: #bed3c5;
+    border: 1px solid #000;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    padding: 10px;
+  }
+
+
+  
+  
+  
+  
+  
+  .card h2 {
+    
+    font-size: 18px;
+    margin-bottom: 8px;
+    list-style: none;
+  }
+  
+  .card p {
+    
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 16px;
+  }
+  
+  .card button {
+    background-color: #000;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    margin-left: 0px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .card button:hover {
+    background-color: grey;
+  }
+ 
+  .profile-photo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%; /* Apply circular border-radius */
+    overflow: hidden; /* Hide the overflow to make the image circular */
+    margin: 0 auto; /* Center the circular photo */
+  }
+  
+  .profile-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+.context a{
+  color: #000;
+text-decoration: none;
+}
+  
+.similar{
+  margin-left: 50px;
+  
+}

@@ -1,0 +1,99 @@
+body {
+  margin: 0;
+  font-family: Outfit, sans-serif;
+}
+
+.navbar {
+  background-color: #bed3c5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0px 10px 0px 10px;
+  margin: 50px 150px 10px 150px;
+  border-radius: 5px;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-logo img {
+  height: 100px;
+  width: 120px;
+  margin-right: 10px;
+}
+
+.navbar-text {
+  font-size: 25px;
+  font-weight: bold;
+  color: #333;
+}
+
+button {
+  background-color: #000;
+  color: #fff;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  width: 120px;
+}
+
+button:hover {
+  background-color: grey;
+}
+
+.try button {
+  background-color: #ffffff; /* Set the background color for the "TRY NOW" button */
+  color: #000000; /* Set the text color for the "TRY NOW" button */
+  border: 2px solid #000000;
+}
+
+.content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 30px 150px 30px 150px;
+  }
+ .main{
+  font-size: 70px;
+  font-weight: bold;
+ }
+
+ .context{
+  margin: 30px 150px 30px 150px;
+  font-size: 25px;
+ }
+
+ .butt{
+  margin: 30px 150px 30px 150px;
+ }
+  
+  .butt {
+    display: flex;
+    justify-content: left;
+    margin: 30px 150px 30px 150px;
+  }
+  
+  .butt div {
+    margin-right: 25px; /* Add some spacing between the buttons */
+  }
+  
+  .butt div:last-child {
+    margin-right: 0; /* Remove the right margin from the last button */
+  }
+
+
+ 
+  .img img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .try{
+    background-color: #fff;
+    color:#000;
+    margin-left: 150px;
+  }

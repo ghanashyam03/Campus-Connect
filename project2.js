@@ -8,6 +8,8 @@ const { error } = require('console');
 const http = require('http');
 const socketIO = require('socket.io');
 const app = express();
+const util = require('util');
+
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -27,8 +29,13 @@ const connection = mysql.createConnection({
   database: 'project',
 });
 
+
+const connectionQueryAsync = util.promisify(connection.query).bind(connection);
+
+
+
 app.get('/', function (req, res) {
-    res.sendFile(path.join(__dirname , 'public' , 'index.html'));
+    res.sendFile(path.join(__dirname , 'public' , 'LandingPage', 'landing.html'));
   });
   
   app.get('/signup', function (req, res) {
@@ -79,7 +86,7 @@ app.get('/', function (req, res) {
 
 app.get('/login', checkLoggedIn, function (req, res) {
    
-    res.sendFile(path.join(__dirname, 'public', 'logsign.html'));
+    res.sendFile(path.join(__dirname, 'public', 'logosign', 'logsign.html'));
     
   });
   
@@ -138,102 +145,117 @@ const requireLogin = (req, res, next) => {
   
 
   app.get('/feed', requireLogin, function (req, res) {
-    const username = req.session.username;
-  
-    const sql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(sql, [username], (err, userids) => {
-      if (err) {
-        console.error('Error fetching data from MySQL database: ', err);
+  const username = req.session.username;
+
+  const sql = 'SELECT userid FROM users WHERE username = ?';
+  connection.query(sql, [username], (err, userids) => {
+    if (err) {
+      console.error('Error fetching data from MySQL database: ', err);
+      res.status(500).send('Internal server error');
+      return;
+    }
+
+    const userid = userids[0].userid;
+
+    const sql3 = 'SELECT frienduserid FROM friends WHERE userid = ?';
+    connection.query(sql3, [userid], (err1, friends) => {
+      if (err1) {
+        console.error('Error fetching data from MySQL database: ', err1);
         res.status(500).send('Internal server error');
         return;
       }
-  
-      const userid = userids[0].userid;
-  
-      const sql3 = 'SELECT frienduserid FROM friends WHERE userid = ?';
-      connection.query(sql3, [userid], (err1, friends) => {
-        if (err1) {
-          console.error('Error fetching data from MySQL database: ', err1);
+
+      const friendUserIds = friends.map((friend) => friend.frienduserid);
+      if (friendUserIds.length === 0) {
+        // Redirect to the people page to connect with others
+        res.redirect('/people');
+        return;
+      }
+
+      const placeholders = friendUserIds.map(() => '?').join(',');
+      const query = `
+        SELECT posts.postid, posts.title, posts.content, posts.topic, posts.interests, users.username, COUNT(likes.likeid) AS likeCount
+        FROM posts
+        INNER JOIN users ON posts.userid = users.userid
+        LEFT JOIN likes ON posts.postid = likes.postid
+        WHERE posts.userid IN (${placeholders})
+        GROUP BY posts.postid, posts.title, posts.content, posts.topic, posts.interests, users.username
+      `;
+      const queryParams = friendUserIds;
+      connection.query(query, queryParams, (error, results) => {
+        if (error) {
+          console.error('Error fetching data from MySQL database: ', error);
           res.status(500).send('Internal server error');
           return;
         }
-  
-        const friendUserIds = friends.map((friend) => friend.frienduserid);
-        if (friendUserIds.length === 0) {
-          // Redirect to the people page to connect with others
-          res.redirect('/people');
-          return;
+
+        let postsHTML = '';
+        if (results.length === 0) {
+          postsHTML = '<p>Nothing new here.</p>';
+        } else {
+          for (const post of results) {
+            const likeButton = `
+              <form method="POST" action="/like">
+                <input type="hidden" name="postid" value="${post.postid}">
+                <button class="like-button" type="submit">${post.likeCount > 0 ? 'Unlike' : 'Like'}</button>
+              </form>
+            `;
+
+            postsHTML += `
+              <div class="post">
+                <div class="post-info-container">
+                  <h1><b>${post.title}</b></h1>
+                  <div class="user-topic">
+                    <p class="user-info"><strong>User:</strong> ${post.username}</p>
+                    <p class="topic-info"><strong>Topic:</strong> ${post.topic}</p>
+                    <p class="interest-info"><strong>Interest:</strong> <span class="interest-frame">${post.interests}</span></p>
+                  </div>
+                </div>
+                <p><b>${post.content}</b></p>
+                <div class="post-info">
+                  <span class="like-count">Likes: ${post.likeCount}</span>
+                  ${likeButton}
+                </div>
+              </div>
+            `;
+          }
         }
   
-        const placeholders = friendUserIds.map(() => '?').join(',');
-        const query = `
-          SELECT posts.postid, posts.title, posts.content, posts.topic, users.username, COUNT(likes.likeid) AS likeCount
-          FROM posts
-          INNER JOIN users ON posts.userid = users.userid
-          LEFT JOIN likes ON posts.postid = likes.postid
-          WHERE posts.userid IN (${placeholders})
-          GROUP BY posts.postid, posts.title, posts.content, posts.topic, users.username
-        `;
-        const queryParams = friendUserIds;
-        connection.query(query, queryParams, (error, results) => {
-          if (error) {
-            console.error('Error fetching data from MySQL database: ', error);
-            res.status(500).send('Internal server error');
-            return;
-          }
-  
-          let postsHTML = '';
-          if (results.length === 0) {
-            postsHTML = '<p>Nothing new here.</p>';
-          } else {
-            for (const post of results) {
-              const likeButton = `
-                <form method="POST" action="/like">
-                  <input type="hidden" name="postid" value="${post.postid}">
-                  <button type="submit">${post.likeCount > 0 ? 'Unlike' : 'Like'}</button>
-                </form>
-              `;
-  
-              postsHTML += `
-                <article>
-                  <header>
-
-                    <h2>${post.title}</h2>
-                    <p class="account-name">${post.username}</p>
-                  </header>
-                  <p class="post-content">${post.content}</p>
-                  <p class="likes-count">Likes: ${post.likeCount}</p>
-                  ${likeButton}
-                </article>
-              `;
-            }
-          }
-  
           res.send(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>My Feed</title>
-                <link rel="stylesheet" href="feed.css">
-              </head>
-              <body>
-                <header>
-                  <h1>My Feed</h1>
-                </header>
-                <nav>
-                  <ul>
-                  <li><a href="/feed">Home</a></li>
-                  <li><a href="/chat">Chats</a></li>
-                  <li><a href="/post">Post</a></li>
-                  <li><a href="/search">Search</a></li>
-                  <li><a href="/notification">Notification</a></li>
-                  <li><a href="/people">People</a></li>
-                  <li><a href="/profile">Profile</a></li>
-                  </ul>
-                </nav>
-                <main>
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Home</title>
+            <link rel="stylesheet" href="home.css">
+            <link href='https://fonts.googleapis.com/css?family=Outfit' rel='stylesheet'>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+          </head>
+          <body>
+            <div class="sidebar">
+              <div class="image-container">
+                <img class="image.logo" src="./Images/logosymbol.png" alt="Logo">
+              </div>
+              <a href="/feed"><i class="fas fa-home"></i> Home</a>
+              <a href="/people"><i class="fas fa-users"></i> People</a>
+              <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+              <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+              <a href="/search"><i class="fas fa-search"></i> Search</a>
+              <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+            </div>
+          
+            <div class="content">
+              <div class="logo-and-profile">
+                <h1><b>CAMPUS CONNECT</b></h1>
+                <div class="user-profile">
+      
+                    
+              </div>
+              <div class="new-post">
+                
                   ${postsHTML}
-                </main>
+                </div>
+              </div>
               </body>
             </html>
           `);
@@ -244,255 +266,239 @@ const requireLogin = (req, res, next) => {
   
   
   
-  app.get('/chat', requireLogin, function (req, res) {
+
+  
+  
+  app.get('/chat', requireLogin, async function (req, res) {
     const username = req.session.username;
   
-    const sql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(sql, [username], (err, userids) => {
-      if (err) {
-        console.error('Error fetching data from MySQL database: ', err);
-        return res.status(500).send('Internal server error');
-      }
-  
+    try {
+      const userQuery = 'SELECT userid FROM users WHERE username = ?';
+      const userids = await connectionQueryAsync(userQuery, [username]);
       const currentUserID = userids[0].userid;
   
-      const sql2 = `
-        SELECT users.userid, users.username
-        FROM users
-        INNER JOIN chat ON users.userid = chat.receiverid OR users.userid = chat.senderid
-        WHERE chat.receiverid = ? OR chat.senderid = ?
-        GROUP BY users.userid, users.username
-      `;
-      connection.query(sql2, [currentUserID, currentUserID], (err, chats) => {
-        if (err) {
-          console.error('Error fetching data from MySQL database: ', err);
-          return res.status(500).send('Internal server error');
-        }
+      const chatQuery = `
+  SELECT DISTINCT users.userid, users.username, profile_photos.filename
+  FROM users
+  LEFT JOIN chat ON users.userid = chat.receiverid OR users.userid = chat.senderid
+  LEFT JOIN profile_photos ON users.userid = profile_photos.userid
+  WHERE (chat.receiverid = ? OR chat.senderid = ?) AND users.userid != ?
+`;
+
+      const chats = await connectionQueryAsync(chatQuery, [currentUserID, currentUserID, currentUserID]);
   
+      // Generate dynamic HTML for the chat list
+      let chatListHTML = '';
+      for (const chat of chats) {
+        const profilephoto = chat.filename ? `/${chat.filename}` : '/default.jpg';
+        chatListHTML += `
+          <div class="friend">
+            <img src="uploads${profilephoto}" alt="Friend">
+            <a href="/chat/${chat.userid}">${chat.username}</a>
+          </div>
+        `;
+      }
+  
+        // Send the dynamic HTML response
         res.send(`
           <!DOCTYPE html>
           <html>
-            <head>
-              <title>My Chats</title>
-              <link rel="stylesheet" href="chat.css">
-            </head>
-            <body>
-              <header>
-                <h1>My Chats</h1>
-              </header>
-              <nav>
-                <ul>
-                  <li><a href="/feed">Home</a></li>
-                  <li><a href="/chat">Chats</a></li>
-                  <li><a href="/post">Post</a></li>
-                  <li><a href="/search">Search</a></li>
-                  <li><a href="/notification">Notification</a></li>
-                  <li><a href="/people">People</a></li>
-                  <li><a href="/profile">Profile</a></li>
-                </ul>
-              </nav>
-              <main>
-                <ul class="chat-list">
-                  ${chats.map(chat => `<li><a href="/chat/${chat.userid}">${chat.username}</a></li>`).join('')}
-                </ul>
-              </main>
-            </body>
+          <head>
+            <title>Chat List</title>
+            <link rel="stylesheet" href="chatlist.css">
+            <link href='https://fonts.googleapis.com/css?family=Outfit' rel='stylesheet'>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+          </head>
+          <body>
+            <div class="sidebar">
+              <div class="image-container">
+                <img class="image.logo" src="./Images/logosymbol.png" alt="Logo">
+              </div>
+              <a href="/feed"><i class="fas fa-home"></i> Home</a>
+              <a href="/people"><i class="fas fa-users"></i> People</a>
+              <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+              <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+              <a href="/search"><i class="fas fa-search"></i> Search</a>
+              <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+            </div>
+  
+            <div class="content">
+              <div class="logo-and-profile">
+                <h1><b>CAMPUS CONNECT</b></h1>
+                <a href="user_profile.html" class="home-icon"><i class="fas fa-home"></i></a>
+              </div>
+              <div class="chat-section">
+                <!-- User Profile Name -->
+                <div class="profile-chat-container">
+                  <p>Messages</p>
+                </div>
+                <main>
+                  <div class="friends-list">
+                    ${chatListHTML}
+                  </div>
+                </main>
+              </div>
+            </div>
+          </body>
           </html>
-        `);
+          `);
+        } catch (err) {
+          console.error('Error fetching data from MySQL database: ', err);
+          return res.status(500).send('Internal server error');
+        }
       });
-    });
-  });
-  
-  const server = http.createServer(app);
-  const io = socketIO(server);
   
 
-  const clients = {};
-
-  io.on('connection', (socket) => {
-    console.log('A user connected');
-  
-    
-    socket.on('setUserId', (userId) => {
-      clients[userId] = socket.id;
-    });
-  
-  
-    socket.on('newMessage', (data) => {
-      const { senderId, receiverId, message } = data;
   
 
-      if (clients.hasOwnProperty(receiverId)) {
-        io.to(clients[receiverId]).emit('receiveMessage', { senderId, message });
-      }
-    });
   
-    
-    socket.on('disconnect', () => {
-      console.log('A user disconnected');
-      
-      const userId = Object.keys(clients).find((key) => clients[key] === socket.id);
-      if (userId) {
-        delete clients[userId];
-      }
-    });
-  });
+  
+
   
  
-  app.get('/chat/:userid', requireLogin, (req, res) => {
-    const otherUserID = req.params.userid;
-    const username = req.session.username;
-  
-    const sql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(sql, [username], (err, userids) => {
+// Assuming you have already set up the necessary imports and configurations for the app and connection to the database.
+
+app.get('/chat/:userid', requireLogin, function (req, res) {
+  const otherUserID = req.params.userid;
+  const username = req.session.username;
+
+  const sql = 'SELECT userid FROM users WHERE username = ?';
+  connection.query(sql, [username], (err, userids) => {
+    if (err) {
+      console.error('Error fetching data from MySQL database: ', err);
+      return res.status(500).send('Internal server error');
+    }
+
+    const currentUserID = userids[0].userid;
+    const sql2 = `
+      SELECT chat.*, 
+             sender.username AS senderusername, 
+             receiver.username AS receiverusername
+      FROM chat
+      INNER JOIN users AS sender ON sender.userid = chat.senderid
+      INNER JOIN users AS receiver ON receiver.userid = chat.receiverid
+      WHERE (chat.senderid = ? AND chat.receiverid = ?) OR (chat.senderid = ? AND chat.receiverid = ?)
+      ORDER BY chat.timestamp ASC
+    `;
+    connection.query(sql2, [currentUserID, otherUserID, otherUserID, currentUserID], (err, messages) => {
       if (err) {
         console.error('Error fetching data from MySQL database: ', err);
         return res.status(500).send('Internal server error');
       }
-  
-      if (userids.length === 0) {
-        console.error('User ID not found');
-        return res.status(404).send('User ID not found');
-      }
-  
-      const currentUserID = userids[0].userid;
-      const sql2 = `
-        SELECT chat.*, 
-               sender.username AS senderusername, 
-               receiver.username AS receiverusername
-        FROM chat
-        INNER JOIN users AS sender ON sender.userid = chat.senderid
-        INNER JOIN users AS receiver ON receiver.userid = chat.receiverid
-        WHERE (chat.senderid = ? AND chat.receiverid = ?) OR (chat.senderid = ? AND chat.receiverid = ?)
-        ORDER BY chat.timestamp ASC
-      `;
-      connection.query(sql2, [currentUserID, otherUserID, otherUserID, currentUserID], (err, messages) => {
-        if (err) {
-          console.error('Error fetching data from MySQL database: ', err);
-          return res.status(500).send('Internal server error');
-        }
-  
-        let otherusername = '';
-        if (messages.length > 0) {
-          if (messages[0].senderid === currentUserID && messages[0].receiverid === currentUserID) {
-            otherusername = username; // Current user is chatting with themselves
-          } else {
-            otherusername = messages[0].senderid === currentUserID ? messages[0].receiverusername : messages[0].senderusername;
-          }
+
+      let otherusername = '';
+      if (messages.length > 0) {
+        if (messages[0].senderid === currentUserID && messages[0].receiverid === currentUserID) {
+          otherusername = username; // Current user is chatting with themselves
         } else {
-          otherusername = username; // No messages, current user is chatting with themselves
+          otherusername = messages[0].senderid === currentUserID ? messages[0].receiverusername : messages[0].senderusername;
         }
-  
-        res.send(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>${otherusername}</title>
-              <link rel="stylesheet" href="/chatwith.css">
-            </head>
-            <body>
-              <nav>
-                <ul>
-                  <li><a href="/chat">Back</a></li>
-                </ul>
-              </nav>
-              <main>
+      } else {
+        otherusername = username; // No messages, current user is chatting with themselves
+      }
+
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Chat Box2</title>
+            <link rel="stylesheet" href="../chat.css">
+            <link href='https://fonts.googleapis.com/css?family=Outfit' rel='stylesheet'>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+          </head>
+          <body>
+          <div class="sidebar">
+          <div class="image-container">
+            <img class="image.logo" src="./Images/logosymbol.png" alt="Logo">
+          </div>
+          <a href="/feed"><i class="fas fa-home"></i> Home</a>
+              <a href="/people"><i class="fas fa-users"></i> People</a>
+              <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+              <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+              <a href="/search"><i class="fas fa-search"></i> Search</a>
+              <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+        </div>
+      
+         <div class="content">
+          <div class="logo-and-profile">
+            <h1><b>CAMPUS CONNECT</b></h1>
+            <a href="user_profile.html" class="home-icon"><i class="fas fa-home"></i></a>
+          </div>
+            <div class="chat-box" id="chatbox">
+              <!-- Friend's Name and Profile Picture -->
+              <div class="friend-profile">
+                
                 <h3>${otherusername}</h3>
-                <ul class="message-list">
-                  ${messages.map(message => `<li>${message.senderusername}: ${message.message}</li>`).join('')}
-                </ul>
-                <form id="chatForm" action="/chatwith/${otherUserID}" method="POST">
-                  <input type="text" name="message" id="messageInput" placeholder="Type your message" required>
-                  <button type="submit">Send</button>
-                </form>
-              </main>
-              <script src="/socket.io/socket.io.js"></script>
-              <script>
-                const socket = io();
-  
-                // Set the current user ID for socket.io
-                socket.emit('setUserId', ${currentUserID});
-  
-                // Receive new messages from the server
-                socket.on('receiveMessage', (data) => {
-                  const messageList = document.querySelector('.message-list');
-                  const newMessage = document.createElement('li');
-                  newMessage.textContent = data.senderId + ': ' + data.message;
-                  messageList.appendChild(newMessage);
-                });
-  
-                // Submit the new chat message
-                const chatForm = document.getElementById('chatForm');
-                const messageInput = document.getElementById('messageInput');
-                chatForm.addEventListener('submit', (e) => {
-                  e.preventDefault();
-                  const message = messageInput.value;
-                  if (message.trim() === '') {
-                    return;
+              </div>
+              <!-- Chat Messages -->
+              <div class="chat-messages" id="chat-messages">
+                ${messages.map((message) => {
+                  if (message.senderid === currentUserID) {
+                    // Message sent by the current user
+                    return `
+                      <div class="message user">
+                        <p>${message.message}</p>
+                      </div>
+                    `;
+                  } else {
+                    // Message sent by the other user
+                    return `
+                      <div class="message friend">
+                        <p>${message.message}</p>
+                      </div>
+                    `;
                   }
-                  const data = {
-                    senderId: ${currentUserID},
-                    receiverId: ${otherUserID},
-                    message: message
-                  };
-                  socket.emit('newMessage', data);
-                  messageInput.value = '';
-                });
-              </script>
-            </body>
-          </html>
-        `);
-      });
+                }).join('')}
+              </div>
+              <!-- Message Input Form -->
+              <form action="/chatwith/${otherUserID}" method="post" class="message-input">
+                <input type="text" name="message" placeholder="Type your message here">
+                <button type="submit">Send</button>
+              </form>
+            </div>
+          </body>
+          <script>
+                const chatbox = document.getElementById('chatbox')
+                chatbox.scrollTop = chatbox.scrollHeight
+          </script>
+        </html>
+      `);
     });
   });
-  
-  app.post('/chatwith/:userid', requireLogin, (req, res) => {
-    const otherUserID = req.params.userid;
-    const message = req.body.message;
-    const username = req.session.username;
-  
-    const sql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(sql, [username], (err, userids) => {
+});
+
+app.post('/chatwith/:userid', requireLogin, function (req, res) {
+  const otherUserID = req.params.userid;
+  const message = req.body.message;
+  const username = req.session.username;
+
+  const sql = 'SELECT userid FROM users WHERE username = ?';
+  connection.query(sql, [username], (err, userids) => {
+    if (err) {
+      console.error('Error fetching data from MySQL database: ', err);
+      res.status(500).send('Internal server error');
+      return;
+    }
+
+    const currentUserID = userids[0].userid;
+    const sql2 = 'INSERT INTO chat (senderid, receiverid, message) VALUES (?, ?, ?)';
+    connection.query(sql2, [currentUserID, otherUserID, message], (err) => {
       if (err) {
-        console.error('Error fetching data from MySQL database: ', err);
-        return res.status(500).send('Internal server error');
+        console.error('Error inserting data into MySQL database: ', err);
+        res.status(500).send('Internal server error');
+        return;
       }
-  
-      if (userids.length === 0) {
-        console.error('User ID not found');
-        return res.status(404).send('User ID not found');
-      }
-  
-      const currentUserID = userids[0].userid;
-      const sql2 = 'INSERT INTO chat (senderid, receiverid, message) VALUES (?, ?, ?)';
-      connection.query(sql2, [currentUserID, otherUserID, message], (err) => {
-        if (err) {
-          console.error('Error inserting data into MySQL database: ', err);
-          return res.status(500).send('Internal server error');
-        }
-  
-        // Emit the new message to the corresponding socket room
-        const data = {
-          senderId: currentUserID,
-          receiverId: otherUserID,
-          message: message
-        };
-        io.to(otherUserID).emit('receiveMessage', data);
-  
-        res.redirect(`/chat/${otherUserID}`);
-      });
+
+      res.redirect(`/chat/${otherUserID}`);
     });
   });
+});
+
+      
   
   
-  
-  // Socket.io connection event
-  io.on('connection', (socket) => {
-    // Event handler for setting the user ID for a socket
-    socket.on('setUserId', (userId) => {
-      socket.join(userId);
-    });
-  });
   
 
 
@@ -576,280 +582,284 @@ app.post('/like', function (req, res) {
   
 
   
-app.get('/search', requireLogin, function (req, res) {
-    const searchedUsername = req.query.username; 
-  
-    
+app.get('/search', requireLogin, async function (req, res) {
+  const searchedUsername = req.query.username;
+
+  try {
     const currentUser = req.session.username;
     const currentUserSql = 'SELECT userid FROM users WHERE username = ?';
-    connection.query(currentUserSql, [currentUser], (err, currentUserIds) => {
+    const currentUserIds = await connectionQueryAsync(currentUserSql, [currentUser]);
+    const currentUserId = currentUserIds[0].userid;
+
+    const sql =
+      `SELECT u.userid, u.username, p.name, profile_photos.filename
+       FROM users u 
+       INNER JOIN profile p ON u.userid = p.userid
+       LEFT JOIN profile_photos ON u.userid = profile_photos.userid
+       WHERE u.username LIKE ?`;
+    const results = await connectionQueryAsync(sql, [searchedUsername + '%']);
+
+    let searchResultsHTML = '';
+    if (results.length === 0) {
+      searchResultsHTML = '<p>No results found.</p>';
+    } else {
+      const friendUserIds = results.map((result) => result.userid);
+
+      // Check if the current user is following each user in the search results
+      const isFollowingSql = 'SELECT frienduserid FROM friends WHERE userid = ? AND frienduserid IN (?)';
+      const followingResults = await connectionQueryAsync(isFollowingSql, [currentUserId, friendUserIds]);
+      const followingUserIds = followingResults.map((result) => result.frienduserid);
+
+      for (const result of results) {
+        const profilephoto = result.filename ? `/${result.filename}` : '/default.jpg';
+        const isFollowingUser = followingUserIds.includes(result.userid);
+        const isCurrentUser = result.userid === currentUserId;
+
+        searchResultsHTML += `
+          <div class="card">
+            <div class="profile-photo">
+              <img src="/uploads${profilephoto}" alt="Image 3">
+            </div>
+            <a href="/friendprofile/${result.userid}"><h2>@${result.username}</h2></a>
+            <p>${result.name}</p>
+            <form method="POST" action="/befri">
+              <input type="hidden" name="friendUsername" value="${result.username}">
+              <button type="submit" class="follow-button" ${
+                isCurrentUser ? 'disabled' : ''}>
+                ${isCurrentUser ? 'You' : isFollowingUser ? 'Following' : 'Follow'}
+              </button>
+            </form>
+          </div>
+        `;
+      }
+    }
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>User Search</title>
+        <link rel="stylesheet" href="search1.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+      </head>
+      <body>
+      <div class="sidebar">
+      <div class="image-container">
+    <img class="image-logo" src="./Images/logo1.png" alt="Logo">
+    </div>
+
+    <a href="/feed"><i class="fas fa-home"></i> Home</a>
+    <a href="/people"><i class="fas fa-users"></i> People</a>
+    <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+    <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+    <a href="/search"><i class="fas fa-search"></i> Search</a>
+    <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+    <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+      </div>
+        <div class="campus">
+          <div class="logo-and-profile">
+            <h1><b>CAMPUS CONNECT</b></h1>
+            <a href="user_profile.html" class="home-icon"><i class="fas fa-home"></i></a>
+          </div>
+          <div class="content">
+            <div class="similar"> 
+              <h1>User Search</h1>
+              <form action="/search" method="GET">
+                <input type="text" name="username" placeholder="Enter @username" />
+                <button type="submit">Search</button>
+              </form>
+            </div>
+            <div class="card-container">
+              ${searchResultsHTML}
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error('Error fetching data from MySQL database: ', err);
+    res.status(500).send('Internal server error');
+  }
+});
+  
+app.get('/friendprofile/:userid', requireLogin, function (req, res) {
+  const profileUserId = req.params.userid;
+  const currentUser = req.session.username;
+  const currentUserSql = 'SELECT userid, username FROM users WHERE username = ?';
+  connection.query(currentUserSql, [currentUser], (err, currentUserData) => {
+    if (err) {
+      console.error('Error fetching data from MySQL database: ', err);
+      res.status(500).send('Internal server error');
+      return;
+    }
+
+    const currentUserId = currentUserData[0].userid;
+    const isCurrentUser = currentUserId === parseInt(profileUserId); // Parse profileUserId to integer for comparison
+    const username = currentUserData[0].username;
+
+    const getDetailsQuery = `
+      SELECT u.username, p.name, COUNT(friend.frienduserid) AS friendcount,
+      CASE WHEN i.interest1 IS NOT NULL THEN i.interest1 ELSE '' END AS interest1,
+      CASE WHEN i.interest2 IS NOT NULL THEN i.interest2 ELSE '' END AS interest2,
+      CASE WHEN i.interest3 IS NOT NULL THEN i.interest3 ELSE '' END AS interest3,
+      CASE WHEN i.interest4 IS NOT NULL THEN i.interest4 ELSE '' END AS interest4,
+      CASE WHEN i.interest5 IS NOT NULL THEN i.interest5 ELSE '' END AS interest5,
+      f.postid, f.title, f.content, f.topic, ph.filename, p.sem, p.stream, u.email, f.interests
+      FROM users u
+      JOIN interests i ON u.userid = i.userid
+      JOIN profile p ON p.userid = u.userid
+      LEFT JOIN friends friend ON friend.userid = u.userid
+      LEFT JOIN posts f ON f.userid = u.userid
+      LEFT JOIN profile_photos ph ON ph.userid = u.userid
+      WHERE u.userid = ?
+      GROUP BY u.userid, u.username, p.name, i.interest1, i.interest2, i.interest3, i.interest4, i.interest5, f.postid, f.title, f.content, f.topic, ph.filename, p.sem, p.stream, u.email, f.interests
+    `;
+    connection.query(getDetailsQuery, [profileUserId], (err, profileResults) => {
       if (err) {
         console.error('Error fetching data from MySQL database: ', err);
         res.status(500).send('Internal server error');
         return;
       }
-  
-      const currentUserId = currentUserIds[0].userid;
-  
-    
-      const sql =
-        'SELECT u.userid, u.username, p.name FROM users u INNER JOIN profile p ON u.userid = p.userid WHERE u.username LIKE ?';
-      connection.query(sql, [searchedUsername + '%'], (err, results) => {
-        if (err) {
-          console.error('Error fetching data from MySQL database: ', err);
-          res.status(500).send('Internal server error');
-          return;
-        }
-  
-        let searchResultsHTML = '';
-        if (results.length === 0) {
-          searchResultsHTML = '<p>No results found.</p>';
-        } else {
-          const friendUserIds = results.map((result) => result.userid);
-  
-          // Check if the current user is following each user in the search results
-          const isFollowingSql = 'SELECT frienduserid FROM friends WHERE userid = ? AND frienduserid IN (?)';
-          connection.query(isFollowingSql, [currentUserId, friendUserIds], (err, followingResults) => {
-            if (err) {
-              console.error('Error fetching data from MySQL database: ', err);
-              res.status(500).send('Internal server error');
-              return;
-            }
-  
-            const followingUserIds = followingResults.map((result) => result.frienduserid);
-  
-            for (const result of results) {
-              const isFollowingUser = followingUserIds.includes(result.userid);
-              const isCurrentUser = result.userid === currentUserId;
-  
-              searchResultsHTML += `
-                <article>
-                  <header>
-                    <h2>@${result.username}</h2>
-                    <p>${result.name}</p>
-                  </header>
-  
-                  <a href="/friendprofile/${result.userid}">View Profile</a>
-  
-                  <form method="POST" action="/befri">
-                    <input type="hidden" name="friendUsername" value="${result.username}">
-                    <button type="submit" class="follow-button" ${
-                      isCurrentUser ? 'disabled' : ''}>
-                      ${isCurrentUser ? 'You' : isFollowingUser ? 'Following' : 'Follow'}
-                    </button>
-                  </form>
-                </article>
-              `;
-            }
-  
-            sendSearchResultsHTML();
-          });
-        }
-  
-        function sendSearchResultsHTML() {
-          res.send(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>User Search</title>
-                <link rel="stylesheet" href="search.css">
-              </head>
-              <body>
-                <header>
-                  <h1>User Search</h1>
-                </header>
-                <nav>
-                  <ul>
-                    <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/notification">Notification</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                  </ul>
-                </nav>
-                <main>
-                  <form action="/search" method="GET">
-                    <input type="text" name="username" placeholder="Enter @username" />
-                    <button type="submit">Search</button>
-                  </form>
-                  ${searchResultsHTML}
-                </main>
-              </body>
-            </html>
-          `);
-        }
-  
-        if (results.length === 0) {
-          sendSearchResultsHTML();
-        }
-      });
-    });
-  });
-  
-  app.get('/friendprofile/:userid', requireLogin, function (req, res) {
-    const profileUserId = req.params.userid;
-    const currentUser = req.session.username;
-    const currentUserSql = 'SELECT userid, username FROM users WHERE username = ?'; // Add username to the SELECT query
-    connection.query(currentUserSql, [currentUser], (err, currentUserData) => { // Change currentUserIds to currentUserData
-      if (err) {
-        console.error('Error fetching data from MySQL database: ', err);
-        res.status(500).send('Internal server error');
-        return;
-      }
-  
-      const currentUserId = currentUserData[0].userid;
-      const isCurrentUser = currentUserId === profileUserId; // Check if the current user is viewing their own profile
-      const username = currentUserData[0].username; // Retrieve the username
-  
-      // Retrieve the profile details of the selected user using the profileUserId
-      const getDetailsQuery = `
-        SELECT u.username, p.name, COUNT(friend.frienduserid) AS friendcount,
-          CASE WHEN i.interest1 IS NOT NULL THEN i.interest1 ELSE '' END AS interest1,
-          CASE WHEN i.interest2 IS NOT NULL THEN i.interest2 ELSE '' END AS interest2,
-          CASE WHEN i.interest3 IS NOT NULL THEN i.interest3 ELSE '' END AS interest3,
-          CASE WHEN i.interest4 IS NOT NULL THEN i.interest4 ELSE '' END AS interest4,
-          CASE WHEN i.interest5 IS NOT NULL THEN i.interest5 ELSE '' END AS interest5,
-          f.title, f.content, f.topic
-        FROM users u
-        JOIN interests i ON u.userid = i.userid
-        JOIN profile p ON p.userid = u.userid
-        LEFT JOIN friends friend ON friend.userid = u.userid
-        LEFT JOIN posts f ON f.userid = u.userid
-        WHERE u.userid = ?
-        GROUP BY u.userid, u.username, p.name, i.interest1, i.interest2, i.interest3, i.interest4, i.interest5, f.title, f.content, f.topic
-      `;
-      connection.query(getDetailsQuery, [profileUserId], (err, profileResults) => {
-        if (err) {
-          console.error('Error fetching data from MySQL database: ', err);
-          res.status(500).send('Internal server error');
-          return;
-        }
-  
-        const postsByUser = {};
-        profileResults.forEach((result) => {
-          const {
-            username,
+
+      const postsByUser = {};
+      profileResults.forEach((result) => {
+        const {
+          username,
+          name,
+          friendcount,
+          interest1,
+          interest2,
+          interest3,
+          interest4,
+          interest5,
+          postid,
+          title,
+          content,
+          topic,
+          filename,
+          sem,
+          stream,
+          email,
+          interests,
+        } = result;
+
+        if (!postsByUser[username]) {
+          postsByUser[username] = {
             name,
             friendcount,
-            interest1,
-            interest2,
-            interest3,
-            interest4,
-            interest5,
+            interests: [interest1, interest2, interest3, interest4, interest5].filter((interest) => interest !== ''),
+            posts: [],
+            profilePhoto: filename ? `/${filename}` : '/default.jpg',
+            sem,
+            stream,
+            email,
+          };
+        }
+
+        if (title && content && topic) {
+          postsByUser[username].posts.push({
             title,
             content,
             topic,
-          } = result;
-  
-          if (!postsByUser[username]) {
-            postsByUser[username] = {
-              name,
-              friendcount,
-              interests: [interest1, interest2, interest3, interest4, interest5].filter((interest) => interest !== ''),
-              posts: [],
-            };
-          }
-  
-          if (title && content && topic) {
-            postsByUser[username].posts.push({
-              title,
-              content,
-              topic,
-            });
-          }
-        });
-  
-        // Check if the current user is following the profile user
-        const isFollowingUserQuery = 'SELECT COUNT(*) AS isFollowing FROM friends WHERE userid = ? AND frienduserid = ?';
-        connection.query(isFollowingUserQuery, [currentUserId, profileUserId], (err, followingResult) => {
-          if (err) {
-            console.error('Error fetching data from MySQL database: ', err);
-            res.status(500).send('Internal server error');
-            return;
-          }
-  
-          const isFollowingUser = followingResult[0].isFollowing === 1;
-  
-          const htmlPosts = Object.keys(postsByUser).map((username) => {
-            const { name, friendcount, interests, posts } = postsByUser[username];
-  
-            // Generate HTML for interests
-            const interestsHTML = interests.map((interest) => `<li>${interest}</li>`).join('');
-  
-            // Generate HTML for each post
-            let postsHTML = '';
-            if (posts.length > 0) {
-              postsHTML = posts
-                .map(
-                  (post) => `
-                    <div class="post">
-                      <h3>${post.title}</h3>
-                      <h5>${post.topic}</h5>
-                      <p>${post.content}</p>
-                    </div>
-                  `
-                )
-                .join('');
-            } else {
-              postsHTML = '<p>No posts yet.</p>';
-            }
-  
-            return `
-              <div class="profile">
-                <h2>@${username}</h2>
-                <h3>${name}</h3>
-                <p>Friends: <span id="friends">${friendcount}</span></p>
-                <h3>Interests:</h3>
-                <ul id="interests">
-                  ${interestsHTML}
-                </ul>
-  
-                <form method="POST" action="/profilefollow">
-                  <input type="hidden" name="friendUsername" value="${username}">
-                  <input type="hidden" name="profileUserId" value="${profileUserId}">
-                  <button type="submit" class="follow-button" ${isCurrentUser ? 'disabled' : ''}>
-                    ${isCurrentUser ? 'You' : isFollowingUser ? 'Following' : 'Follow'}
-                  </button>
-                </form>
-  
-                
-                <button type="submit"><a href="/chat/${profileUserId}">Chat</a></button>
-             
-              
-
-              </div>
-  
-              <h2>All Posts:</h2>
-              ${postsHTML}
-            `;
+            postid,
+            interests,
           });
-  
-          res.send(`
-            <html>
-              <head>
-                <title>Profile</title>
-                <link rel="stylesheet" type="text/css" href="/friendprofile.css">
-              </head>
-              <body>
-                <nav>
-                  <ul>
-                    <li><a href="/feed">Home</a></li>
-                    <li><a href="/post">Post</a></li>
-                    <li><a href="/search">Search</a></li>
-                    <li><a href="/notification">Notification</a></li>
-                    <li><a href="/people">People</a></li>
-                    <li><a href="/profile">Profile</a></li>
-                  </ul>
-                </nav>
-                ${htmlPosts.join('')}
-              </body>
-            </html>
-          `);
+        }
+      });
+
+      const isFollowingUserQuery = 'SELECT COUNT(*) AS isFollowing FROM friends WHERE userid = ? AND frienduserid = ?';
+      connection.query(isFollowingUserQuery, [currentUserId, profileUserId], (err, followingResult) => {
+        if (err) {
+          console.error('Error fetching data from MySQL database: ', err);
+          res.status(500).send('Internal server error');
+          return;
+        }
+
+        const isFollowingUser = followingResult[0].isFollowing === 1;
+
+        const htmlPosts = Object.keys(postsByUser).map((username) => {
+          const { name, friendcount, interests, posts, profilePhoto, sem, stream, email } = postsByUser[username];
+
+          const interestsHTML = interests.map((interest) => `<li>${interest}</li>`).join('');
+
+          let postsHTML = '';
+          if (posts.length > 0) {
+            postsHTML = posts
+              .map(
+                (post) => `
+                  <div class="post">
+                    <h3>${post.title}</h3>
+                    <h5>${post.topic}</h5>
+                    <p>${post.content}</p>
+                    <p>${post.interests}</p>
+                  </div>
+                `
+              )
+              .join('');
+          } else {
+            postsHTML = '<p>No posts yet.</p>';
+          }
+
+          return `
+            <div class="profile">
+              <h2>@${username}</h2>
+              <h3>${name}</h3>
+              <p>Friends: <span id="friends">${friendcount}</span></p>
+              <p><b>Semester:</b> ${sem}</p>
+              <p><b>Stream:</b> ${stream}</p>
+              <p><b>Email Id:</b> ${email}</p>
+              <h3>Interests:</h3>
+              <ul id="interests">
+                ${interestsHTML}
+              </ul>
+
+              <form method="POST" action="/profilefollow">
+                <input type="hidden" name="friendUsername" value="${username}">
+                <input type="hidden" name="profileUserId" value="${profileUserId}">
+                <button type="submit" class="follow-button" ${isCurrentUser ? 'disabled' : ''}>
+                  ${isCurrentUser ? 'You' : isFollowingUser ? 'Following' : 'Follow'}
+                </button>
+              </form>
+
+              <button type="submit"><a href="/chat/${profileUserId}">Chat</a></button>
+            </div>
+
+            <h2>All Posts:</h2>
+            ${postsHTML}
+          `;
         });
+
+        res.send(`
+          <html>
+            <head>
+              <title>Profile</title>
+              <link rel="stylesheet" type="text/css" href="/friendprofile.css">
+            </head>
+            <body>
+            <div class="sidebar">
+              <div class="image-container">
+                < img class="logosymbol.pn" src="./Images/logo1.png" alt="Logo">
+              </div>
+              <a href="/feed"><i class="fas fa-home"></i> Home</a>
+              <a href="/people"><i class="fas fa-users"></i> People</a>
+              <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+              <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+              <a href="/search"><i class="fas fa-search"></i> Search</a>
+              <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+            </div>
+              ${htmlPosts.join('')}
+            </body>
+          </html>
+        `);
       });
     });
   });
+});
+
+
+
   
   
   app.post('/profilefollow', function (req, res) {
@@ -1010,9 +1020,10 @@ app.get('/search', requireLogin, function (req, res) {
       const sql = `
       
          SELECT notifications.notificationid, notifications.type, notifications.message,
-             users.username, notifications.created_at
+             users.username, notifications.created_at, profile_photos.filename
          FROM notifications
         INNER JOIN users ON notifications.userid = users.userid
+        LEFT JOIN profile_photos ON notifications.senderid = profile_photos.userid
         WHERE notifications.userid = ?
         ORDER BY notifications.created_at DESC
         LIMIT 10
@@ -1035,7 +1046,8 @@ app.get('/search', requireLogin, function (req, res) {
             const notificationMessage = notification.message;
             const senderUsername = notification.username;
             const createdAt = notification.created_at;
-  
+            const profilephoto = notification.filename ? `/${notification.filename}` : '/default.jpg';
+
             notificationsHTML += `
               <article>
                 <header>
@@ -1043,7 +1055,12 @@ app.get('/search', requireLogin, function (req, res) {
                   <p class="timestamp">${createdAt}</p>
                 </header>
                 <p class="notification-content">
-                  <strong>${senderUsername}</strong> ${notificationMessage}
+                <div class="profile">
+              <div class="profile-photo">
+                <img src="/uploads${profilephoto}" alt="Image 3" class="circular-image">
+              </div>
+                <div class="sender"> <strong>${senderUsername} : </strong> ${notificationMessage}</div>
+                </div>
                 </p>
               </article>
             `;
@@ -1051,26 +1068,30 @@ app.get('/search', requireLogin, function (req, res) {
         }
   
         res.send(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Notifications</title>
-              <link rel="stylesheet" href="/notification.css">
-            </head>
-            <body>
-              <header>
-                <h1>Notifications</h1>
-              </header>
-              <nav>
-                <ul>
-                  <li><a href="/feed">Home</a></li>
-                  <li><a href="/post">Post</a></li>
-                  <li><a href="/search">Search</a></li>
-                  <li class="active"><a href="/notification">Notification</a></li>
-                  <li><a href="/people">People</a></li>
-                  <li><a href="/profile">Profile</a></li>
-                </ul>
-              </nav>
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Notifications</title>
+            <link rel="stylesheet" href="notifications.css">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+          </head>
+          <body>
+        
+              <!-- <h1>Notifications</h1> -->
+            
+           
+              <div class="sidebar">
+                <div class="image-container">
+                  <img class="image.logo" src="./Images/logo1.png" alt="Logo">
+                </div>
+                <a href="/feed"><i class="fas fa-home"></i> Home</a>
+              <a href="/people"><i class="fas fa-users"></i> People</a>
+              <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+              <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+              <a href="/search"><i class="fas fa-search"></i> Search</a>
+              <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+              </div>
               <main>
                 ${notificationsHTML}
               </main>
@@ -1126,10 +1147,11 @@ app.get('/search', requireLogin, function (req, res) {
   
         const findSimilarUsersQuery = `
         
-        SELECT u.username, p.name
+        SELECT u.username, p.name, u.userid, profile_photos.filename
         FROM interests i
         JOIN users u ON u.userid = i.userid
         JOIN profile p ON p.userid = i.userid
+        LEFT JOIN profile_photos ON i.userid = profile_photos.userid
         WHERE (i.interest1 IN (?) 
           OR i.interest2 IN (?) 
           OR i.interest3 IN (?) 
@@ -1153,42 +1175,68 @@ app.get('/search', requireLogin, function (req, res) {
           }
   
           const response = results.map((result) => {
-            const { username, name } = result;
+            const { username, name, userid, filename } = result;
+            const profilephoto = filename ? `/${filename}` : '/default.jpg';
+
             return `
-              <li>
-                <h2>@${username}</h2>
+            <div class="card">
+            <div class="profile-photo">
+              <img src="/uploads${profilephoto}" alt="Image 2">
+            </div>
+               <div  class="context">
+                <a href="/friendprofile/${userid}"><h2>${username}</h2></a> 
                 <p>${name}</p>
                 <form method="POST" action="/connect">
                   <input type="hidden" name="friendUsername" value="${username}">
                   <button type="submit">Follow</button>
                 </form>
-              </li>
+              </div>
+              </div>
             `;
           }).join('');
   
           res.send(`
-            <html>
-              <head>
-                <title>Similar Interests</title>
-                <link rel="stylesheet" type="text/css" href="similar.css">
-              </head>
-              <body>
-              <nav>
-                  <ul>
-                  <li><a href="/feed">Home</a></li>
-                  <li><a href="/post">Post</a></li>
-                  <li><a href="/search">Search</a></li>
-                  <li><a href="/notification">Notification</a></li>
-                  <li><a href="/people">People</a></li>
-                  <li><a href="/profile">Profile</a></li>
-                  </ul>
-                </nav>
-                <h1>Connect with People who Share your Interests</h1>
-                <p>Here are some people who have similar interests</p>
-                <ul>
+          <html>
+          <head>
+            <title>Similar Interests</title>
+            <link rel="stylesheet" type="text/css" href="temp.css">
+            <link href='https://fonts.googleapis.com/css?family=Outfit' rel='stylesheet'>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+      
+          </head>
+          <body>
+            <div class="sidebar">
+              <div class="image-container">
+                <img class="image.logo" src="./Images/logo1.png" alt="Logo">
+              </div>
+              <a href="/feed"><i class="fas fa-home"></i> Home</a>
+              <a href="/people"><i class="fas fa-users"></i> People</a>
+              <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+              <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+              <a href="/search"><i class="fas fa-search"></i> Search</a>
+              <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+              <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+            </div>
+      
+            
+      
+            <div class="campus">
+              <div class="logo-and-profile">
+                <h1><b>CAMPUS CONNECT</b></h1>
+                <a href="user_profile.html" class="home-icon"><i class="fas fa-home"></i></a>
+              </div>
+            </div>
+              
+            <div class="content">
+               <div class="similar">
+                 <h1>Connect with People who Share your Interests</h1>
+                  <p>Here are some people who have similar interests</p>
+              </div>
+            <div class="card-container">
                   ${response}
-                </ul>
-                
+                </div>
+                </div>
+                </div>
               </body>
             </html>
           `);
@@ -1196,204 +1244,227 @@ app.get('/search', requireLogin, function (req, res) {
       });
     });
   });
-    const util = require('util');
-    const queryPromise = util.promisify(connection.query).bind(connection);
+  
   
 
 
-    app.get('/profile', requireLogin, (req, res) => {
-      const username = req.session.username;
-    
-      const getUserIDQuery = 'SELECT userid FROM users WHERE username = ?';
-      connection.query(getUserIDQuery, [username], (err, userIDs) => {
+  app.get('/profile', requireLogin, (req, res) => {
+    const username = req.session.username;
+  
+    const getUserIDQuery = 'SELECT userid FROM users WHERE username = ?';
+    connection.query(getUserIDQuery, [username], (err, userIDs) => {
+      if (err) {
+        console.error('Error fetching data from MySQL database: ', err);
+        return res.status(500).send('Internal server error');
+      }
+  
+      const userid = userIDs[0]?.userid;
+  
+      const getDetailsQuery = `
+        SELECT u.username, p.name, COUNT(friend.frienduserid) AS friendcount,
+          CASE WHEN i.interest1 IS NOT NULL THEN i.interest1 ELSE '' END AS interest1,
+          CASE WHEN i.interest2 IS NOT NULL THEN i.interest2 ELSE '' END AS interest2,
+          CASE WHEN i.interest3 IS NOT NULL THEN i.interest3 ELSE '' END AS interest3,
+          CASE WHEN i.interest4 IS NOT NULL THEN i.interest4 ELSE '' END AS interest4,
+          CASE WHEN i.interest5 IS NOT NULL THEN i.interest5 ELSE '' END AS interest5,
+          f.postid, f.title, f.content, f.topic, ph.filename, p.sem, p.stream, u.email, f.interests
+        FROM users u
+        JOIN interests i ON u.userid = i.userid
+        JOIN profile p ON p.userid = u.userid
+        LEFT JOIN friends friend ON friend.userid = u.userid
+        LEFT JOIN posts f ON f.userid = u.userid
+        LEFT JOIN profile_photos ph ON ph.userid = u.userid
+        WHERE u.userid = ?
+        GROUP BY u.userid, u.username, p.name, i.interest1, i.interest2, i.interest3, i.interest4, i.interest5, f.postid, f.title, f.content, f.topic, ph.filename, p.sem, p.stream, u.email, f.interests
+      `;
+  
+      connection.query(getDetailsQuery, [userid], (err, results) => {
         if (err) {
           console.error('Error fetching data from MySQL database: ', err);
           return res.status(500).send('Internal server error');
         }
-    
-        const userid = userIDs[0]?.userid;
-    
-        const getDetailsQuery = `
-          SELECT u.username, p.name, COUNT(friend.frienduserid) AS friendcount,
-            CASE WHEN i.interest1 IS NOT NULL THEN i.interest1 ELSE '' END AS interest1,
-            CASE WHEN i.interest2 IS NOT NULL THEN i.interest2 ELSE '' END AS interest2,
-            CASE WHEN i.interest3 IS NOT NULL THEN i.interest3 ELSE '' END AS interest3,
-            CASE WHEN i.interest4 IS NOT NULL THEN i.interest4 ELSE '' END AS interest4,
-            CASE WHEN i.interest5 IS NOT NULL THEN i.interest5 ELSE '' END AS interest5,
-            f.postid, f.title, f.content, f.topic, ph.filename
-          FROM users u
-          JOIN interests i ON u.userid = i.userid
-          JOIN profile p ON p.userid = u.userid
-          LEFT JOIN friends friend ON friend.userid = u.userid
-          LEFT JOIN posts f ON f.userid = u.userid
-          LEFT JOIN profile_photos ph ON ph.userid = u.userid
-          WHERE u.userid = ?
-          GROUP BY u.userid, u.username, p.name, i.interest1, i.interest2, i.interest3, i.interest4, i.interest5, f.postid, f.title, f.content, f.topic, ph.filename
-        `;
-    
-        connection.query(getDetailsQuery, [userid], (err, results) => {
+  
+        const postsByUser = {};
+        results.forEach((result) => {
+          const {
+            username,
+            name,
+            friendcount,
+            interest1,
+            interest2,
+            interest3,
+            interest4,
+            interest5,
+            postid,
+            title,
+            content,
+            topic,
+            filename,
+            sem,
+            stream,
+            email,
+            interests,
+          } = result;
+  
+          if (!postsByUser[username]) {
+            postsByUser[username] = {
+              name,
+              friendcount,
+              interests: [interest1, interest2, interest3, interest4, interest5].filter((interest) => interest !== ''),
+              posts: [],
+              profilePhoto: filename ? `/${filename}` : '/default.jpg',
+              sem,
+              stream,
+              email,
+            };
+          }
+  
+          if (postid && title && content && topic) {
+            postsByUser[username].posts.push({
+              postid,
+              title,
+              content,
+              topic,
+              interests,
+            });
+          }
+        });
+  
+        console.log('Posts by User:', postsByUser);
+  
+        let profilephotoid = null;
+  
+        const getProfilePhotoIdQuery = 'SELECT profilephotoid FROM profile_photos WHERE userid = ?';
+        connection.query(getProfilePhotoIdQuery, [userid], (err, r) => {
           if (err) {
             console.error('Error fetching data from MySQL database: ', err);
             return res.status(500).send('Internal server error');
           }
-    
-          const postsByUser = {};
-          results.forEach((result) => {
-            const {
-              username,
-              name,
-              friendcount,
-              interest1,
-              interest2,
-              interest3,
-              interest4,
-              interest5,
-              postid, // Fetch the postId from the database
-              title,
-              content,
-              topic,
-              filename
-            } = result;
-    
-            if (!postsByUser[username]) {
-              postsByUser[username] = {
-                name,
-                friendcount,
-                interests: [interest1, interest2, interest3, interest4, interest5].filter((interest) => interest !== ''),
-                posts: [],
-                profilePhoto: filename ? `/${filename}` : '/default.jpg'
-              };
-            }
-    
-            if (postid && title && content && topic) {
-              postsByUser[username].posts.push({
-                postid, // Include the postId in the posts object
-                title,
-                content,
-                topic,
-              });
-            }
-          });
-    
-          console.log('Posts by User:', postsByUser);
-    
-          let profilephotoid = null;
-    
-          const getProfilePhotoIdQuery = 'SELECT profilephotoid FROM profile_photos WHERE userid = ?';
-          connection.query(getProfilePhotoIdQuery, [userid], (err, r) => {
-            if (err) {
-              console.error('Error fetching data from MySQL database: ', err);
-              return res.status(500).send('Internal server error');
-            }
-    
-            console.log('Profile Photo Results:', r);
-    
-            profilephotoid = r.length > 0 ? r[r.length - 1].profilephotoid : null;
-    
-            console.log('Profile Photo ID:', profilephotoid);
-    
-            // Generate HTML for interests
-            const generateInterestsHTML = (interests) => {
-              return interests.map((interest) => `<li>${interest}</li>`).join('');
-            };
-    
-            // Generate HTML for each post
-            const generatePostsHTML = (posts) => {
-              if (posts.length > 0) {
-                return posts.map((post) => `
-                  <div class="post">
-                    <form method="POST" action="/DELETE/${post.postid}"> 
-                      <button type="submit">Delete</button>
-                    </form>
-                    <h3>${post.title}</h3>
-                    <h5>${post.topic}</h5>
-                    <p>${post.content}</p>
-                  </div>
-                `).join('');
-              } else {
-                return '<p>No posts yet.</p>';
-              }
-            };
-    
-            const htmlPosts = Object.keys(postsByUser).map((username) => {
-              const { name, friendcount, interests, posts, profilePhoto } = postsByUser[username];
-            
-              const interestsHTML = generateInterestsHTML(interests);
-              const postsHTML = generatePostsHTML(posts);
-            
-              
-              const profilePhotoPath = profilePhoto.replace(/\\/g, '/');
-            
-              console.log('Profile Photo Path:', profilePhotoPath); // Add this line for debugging
-            
-              return `
-                <div class="profile">
-                  <h2>@${username}</h2>
-                  <h3>${name}</h3>
-                  <div class="profile-photo-container">
-                    <img src="uploads${profilePhotoPath}" alt="Profile Photo">
-                  </div>
-                  <p>Friends: <span id="friends">${friendcount}</span></p>
-                  <h3>Interests:</h3>
-                  <ul id="interests">
-                    ${interestsHTML}
-                    <form method="GET" action="/editint">
-                      <button type="submit">Edit</button>
-                    </form>
-                  </ul>
+  
+          console.log('Profile Photo Results:', r);
+  
+          profilephotoid = r.length > 0 ? r[r.length - 1].profilephotoid : null;
+  
+          console.log('Profile Photo ID:', profilephotoid);
+  
+          const generateInterestsHTML = (interests1) => {
+            return interests1.map((interest) => `<li>${interest}</li>`).join('');
+          };
+  
+          const generatePostsHTML = (posts) => {
+            if (posts.length > 0) {
+              return posts.map((post) => `
+                <div class="post" data-postid="${post.postid}">
+                  <form method="POST" action="/DELETE/${post.postid}"> 
+                    <button type="submit">Delete</button>
+                  </form>
+                  <h3>${post.title}</h3>
+                  <h5>${post.topic}</h5>
+                  <p>${post.content}</p>
+                  <p>${post.interests}</p>
                 </div>
-                <h2>All Posts:</h2>
-                ${postsHTML}
-              `;
-            });
-            
-            console.log('HTML Posts:', htmlPosts);
-    
-            res.send(`
-              <html>
-                <head>
-                  <title>Profile</title>
-                  <link rel="stylesheet" type="text/css" href="profile.css">
-                  <style>
-                    .profile-photo-container {
-                      width: 150px; /* Adjust the desired width */
-                      height: 150px; /* Adjust the desired height */
-                      overflow: hidden;
-                    }
-                    .profile-photo-container img {
-                      object-fit: cover;
-                      width: 100%;
-                      height: 100%;
-                    }
-                  </style>
-                </head>
-                <body>
-                  <nav>
-                    <ul>
-                      <li><a href="/feed">Home</a></li>
-                      <li><a href="/post">Post</a></li>
-                      <li><a href="/search">Search</a></li>
-                      <li><a href="/notification">Notification</a></li>
-                      <li><a href="/people">People</a></li>
-                      <li><a href="/profile">Profile</a></li>
-                    </ul>
-                    <form method="POST" action="/logout">
+              `).join('');
+            } else {
+              return '<p>No posts yet.</p>';
+            }
+          };
+  
+          const htmlPosts = Object.keys(postsByUser).map((username) => {
+            const { name, friendcount, interests, posts, profilePhoto, sem, stream, email } = postsByUser[username];
+  
+            const interestsHTML = generateInterestsHTML(interests);
+            const postsHTML = generatePostsHTML(posts);
+  
+            const profilePhotoPath = profilePhoto.replace(/\\/g, '/');
+  
+            console.log('Profile Photo Path:', profilePhotoPath);
+  
+            return `
+              <div class="profile">
+                <h2>@${username}</h2>
+                <h3>${name}</h3>
+                <div class="profile-photo-container">
+                  <img src="uploads${profilePhotoPath}" alt="Profile Photo">
+                </div>
+                <div class="Details"> 
+                  <p><b>Friends:</b> ${friendcount}</p>
+                  <p><b>Semester:</b> ${sem}</p>
+                  <p><b>Stream:</b> ${stream}</p>
+                  <p><b>Email Id:</b> ${email}</p>
+                </div>
+                <h3>Interests:</h3>
+                <ul id="interests">
+                  ${interestsHTML}
+                  <form method="GET" action="/editint">
+                    <button type="submit">Edit</button>
+                  </form>
+                </ul>
+              </div>
+              <h2>All Posts:</h2>
+              ${postsHTML}
+            `;
+          });
+  
+          console.log('HTML Posts:', htmlPosts);
+  
+          res.send(`
+            <html>
+              <head>
+                <title>Profile</title>
+                <link rel="stylesheet" type="text/css" href="profile.css">
+                <style>
+                  .profile-photo-container {
+                    width: 150px;
+                    height: 150px;
+                    overflow: hidden;
+                  }
+                  .profile-photo-container img {
+                    object-fit: cover;
+                    width: 100%;
+                    height: 100%;
+                  }
+                </style>
+              </head>
+              <body>
+              
+              <div class="sidebar">
+                <div class="image-container">
+                  <img class="image.logo" src="./Images/logo1.png" alt="Logo">
+                </div>
+                <a href="/feed"><i class="fas fa-home"></i> Home</a>
+                <a href="/people"><i class="fas fa-users"></i> People</a>
+                <a href="/post"><i class="fas fa-pencil-alt"></i> Post</a>
+                <a href="/chat"><i class="fas fa-comments"></i> Chats</a>
+                <a href="/search"><i class="fas fa-search"></i> Search</a>
+                <a href="/notification"><i class="fas fa-bell"></i> Notifications</a>
+                <a href="/profile"><i class="fas fa-user"></i> Profile</a>
+                <form method="POST" action="/logout">
                       <button type="submit">LOGOUT</button>
                     </form>
-                  </nav>
-                  ${htmlPosts.join('')}
-                </body>
-              </html>
-            `);
-          });
-        });
+              </div>
+              ${htmlPosts.join('')}
+            </body>
+          </html>
+        `);
       });
     });
+  });
+});
+
+  
+  
+  
+
+  
+
+  
+  
+  
 
 
     // GET request to render the editint.html form
 app.get('/editint', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'editint.html'));
+  res.sendFile(path.join(__dirname, 'public', 'editint', 'editint.html'));
 });
 
 // POST request to handle updating user interests
@@ -1605,7 +1676,7 @@ app.post('/editint', function (req, res) {
 
 
 app.get('/post', requireLogin, function (req, res) {
-  res.sendFile(path.join(__dirname, 'public', 'post.html'));
+  res.sendFile(path.join(__dirname, 'public', 'post', 'post.html'));
     
 });
 
@@ -1614,7 +1685,7 @@ app.get('/post', requireLogin, function (req, res) {
 
 
 app.post('/post', function (req, res) {
-    const { title, content, topic } = req.body;
+    const { title, content, topic, interest } = req.body;
     const username = req.session.username;
   
     const sql = 'SELECT userid FROM users WHERE username = ?';
@@ -1627,9 +1698,9 @@ app.post('/post', function (req, res) {
   
       const userid = userids[0].userid;
   
-      if (title && content && topic) {
-        const insertPostQuery = 'INSERT INTO posts (userid, title, content, topic) VALUES (?, ?, ?, ?)';
-        connection.query(insertPostQuery, [userid, title, content, topic], (err5, result) => {
+      if (title && content && topic && interest) {
+        const insertPostQuery = 'INSERT INTO posts (userid, title, content, topic, interests) VALUES (?, ?, ?, ?, ?)';
+        connection.query(insertPostQuery, [userid, title, content, topic, interest], (err5, result) => {
           if (err5) {
             console.error('Error inserting data into MySQL database: ', err5);
             res.status(500).send('Internal server error');
@@ -1652,6 +1723,7 @@ app.post('/post', function (req, res) {
                   <p>Title: ${title}</p>
                   <p>Content: ${content}</p>
                   <p>Topic: ${topic}</p>
+                  <p>Interest: ${interest}</p>
                 </main>
               </body>
             </html>
@@ -1664,7 +1736,8 @@ app.post('/post', function (req, res) {
   });
 
 
-  app.get('/info', (req, res) => {
+app.get('/info', (req, res) => {
+    
     if(!req.session.loggedin){
       res.redirect('/signup');
     }else{
@@ -1673,14 +1746,15 @@ app.post('/post', function (req, res) {
   });
  
 app.post('/info', function (req, res) {
-    const { full, phone, dateo, course, semester, ending } = req.body;
+    const { full, phone, dateo, course, semester, sex, ending  } = req.body;
     const username = req.session.username;
+    
     const sql = 'SELECT userid FROM users WHERE username = ?';
     connection.query(sql, [username], (err, userids) => {
-        if (full && dateo && phone && course && semester && ending ) {
-            const sql2 = 'INSERT INTO profile (userid, name, dob, phone, course, semester, ending) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        if (full && dateo && phone && course && semester && ending && sex ) {
+            const sql2 = 'INSERT INTO profile (userid, name, phone, dob, gender, stream, sem, yoa) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
             const userid = userids[0].userid;
-            connection.query(sql2, [userid, full, dateo, phone, course, semester, ending], (err, result) => {
+            connection.query(sql2, [userid, full, phone, dateo, sex, course, semester, ending], (err, result) => {
                 if (err) {
                     console.log(err);
                     res.redirect('/info');
@@ -1688,10 +1762,13 @@ app.post('/info', function (req, res) {
                     console.log(result);
                     req.session.info = true;
                     res.redirect('/moreinfo');
+                    
                 }
             });
         } else {
+            
             res.redirect('/info');
+
         }
     });  
 });
@@ -1701,26 +1778,26 @@ app.get('/moreinfo', (req, res) => {
     if(!req.session.info){
       res.redirect('/signup');
     }else{
-      res.sendFile(path.join(__dirname , 'public' , 'accom' , 'accom.html'));
+      res.sendFile(path.join(__dirname , 'public' , 'accomadation' , 'acco.html'));
     }
   });
   
   app.post('/moreinfo', function (req, res) {
-    const { country, state, accommodation, hostel } = req.body;
+    const { country, state, accomadation, hostel } = req.body;
     console.log("country:", country);
     console.log("state:", state);
-    console.log("accommodation:", accommodation);
+    console.log("accommodation:", accomadation);
     console.log("hostel:", hostel);
     const username = req.session.username;
     console.log("username:", username);
     const sql = 'SELECT userid FROM users WHERE username = ?';
     console.log("sql:", sql);
     connection.query(sql, [username], (err, userids) => {
-        if (country && accommodation ) {
+        if (country && accomadation ) {
             const sql2 = 'INSERT INTO info (country, state, accommodation, hostel, userid) VALUES (?, ?, ?, ?, ?)';
             const userid = userids[0].userid;
             console.log("userid:", userid);
-            connection.query(sql2, [country, state, accommodation, hostel, userid], (err, result) => {
+            connection.query(sql2, [country, state, accomadation, hostel, userid], (err, result) => {
                 if (err) {
                     console.log(err);
                     res.redirect('/moreinfo');
@@ -1759,7 +1836,7 @@ app.get('/profilephoto', (req, res) => {
     res.redirect('/signup');
   } else {
     console.log('User session found. Serving profilephoto.html');
-    res.sendFile(path.join(__dirname, 'public', 'profilephoto.html'));
+    res.sendFile(path.join(__dirname, 'public', 'ProfilePicture', 'pfp.html'));
   }
 });
 
@@ -1793,57 +1870,25 @@ app.post('/profilephoto', upload.single('profilePhoto'), (req, res) => {
         console.error('Error storing file in database:', err);
         res.status(500).send('Error storing file in database.');
       } else {
-        console.log('Profile photo uploaded and set successfully');
-        const standardWidth = 200; 
-        const standardHeight = 200;
-        res.send(`
-          <h1>Profile Photo Uploaded Successfully</h1>
-          <div style="width: ${standardWidth}px; height: ${standardHeight}px; overflow: hidden;">
-            <img src="/profilephoto/${result.insertId}" alt="Profile Photo" style="object-fit: cover; width: 100%; height: 100%;">
-          </div>
-          <form action="/int" method="get">
-          <button type="submit">Next</button>
-          </form>
-
-        `);
+        console.log(result);
+        res.redirect('/int');
       }
     });
   });
 });
 
 
-app.get('/profilephoto/:profilephotoid', (req, res) => {
-  const profilephotoid = req.params.profilephotoid;
-  const getPhotoPathQuery = 'SELECT path FROM profile_photos WHERE profilephotoid = ?';
-  connection.query(getPhotoPathQuery, [profilephotoid], (err, results) => {
-    if (err) {
-      console.error('Error fetching profile photo from database:', err);
-      res.status(500).send('Error fetching profile photo from database.');
-    } else {
-      if (results.length === 0) {
-        console.log('Profile photo not found');
-        res.status(404).send('Profile photo not found.');
-      } else {
-        const filePath = path.join(__dirname, results[0].path);
-        res.sendFile(filePath, (err) => {
-          if (err) {
-            console.error('Error sending profile photo:', err);
-            res.status(500).send('Error sending profile photo.');
-          }
-        });
-      }
-    }
-  });
-});
+
 
 
 app.get('/int', (req, res) => {
   if (!req.session.info) {
     res.redirect('/signup');
   } else {
-    res.sendFile(path.join(__dirname, 'public', 'int.html'));
+    res.sendFile(path.join(__dirname, 'public', 'int', 'int.html'));
   }
 });
+
 
 app.post('/int', function (req, res) {
   let interests = req.body.interest;
@@ -1883,6 +1928,11 @@ app.post('/int', function (req, res) {
 });
 
 
+
+
+
+
+
 app.get('/similar', (req, res) => {
   const username = req.session.username;
 
@@ -1916,10 +1966,11 @@ app.get('/similar', (req, res) => {
       }
 
       const findSimilarUsersQuery = `
-        SELECT u.username, p.name
+        SELECT u.username, p.name, profile_photos.filename
         FROM interests i
         JOIN users u ON u.userid = i.userid
         JOIN profile p ON p.userid = i.userid
+        LEFT JOIN profile_photos ON i.userid = profile_photos.userid
         WHERE (i.interest1 IN (?) 
           OR i.interest2 IN (?) 
           OR i.interest3 IN (?) 
@@ -1941,31 +1992,45 @@ app.get('/similar', (req, res) => {
         }
 
         const response = results.map((result) => {
-          const { username, name } = result;
+          const { username, name, filename } = result;
+          const profilephoto = filename ? `/${filename}` : '/default.jpg';
+
           return `
-            <li>
-              <h2>@${username}</h2>
+          <div class="card">
+          <div class="profile-photo">
+            <img src="/uploads${profilephoto}" alt="Image 2">
+          </div>
+             <div  class="context">
+              <h2>${username}</h2> 
               <p>${name}</p>
               <form method="POST" action="/follow">
                 <input type="hidden" name="friendUsername" value="${username}">
                 <button type="submit">Follow</button>
               </form>
-            </li>
+            </div>
+            </div>
           `;
         }).join('');
 
         res.send(`
-          <html>
-            <head>
-              <title>Similar Interests</title>
-              <link rel="stylesheet" type="text/css" href="similar.css">
-            </head>
+        <html>
+          <head>
+           <title>Similar Interests</title>
+            <link rel="stylesheet" type="text/css" href="temp.css">
+            <link href='https://fonts.googleapis.com/css?family=Outfit' rel='stylesheet'>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+          </head>
             <body>
+            <div class="content">
+            <div class="similar">
               <h1>Connect with People who Share your Interests</h1>
-              <p>Here are some people who have similar interests</p>
-              <ul>
-                ${response}
-              </ul>
+               <p>Here are some people who have similar interests</p>
+            </div>
+            <div class="card-container">
+               ${response}
+             </div>
+             </div>
               <a href="/feed">Home</a>
             </body>
           </html>

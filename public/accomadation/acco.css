@@ -1,0 +1,125 @@
+/* Global Styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Outfit', sans-serif;
+  background-color: #bed3c5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* Centering the Content */
+.Acco {
+  max-width: 500px;
+  margin: 0 auto;
+  background-color: #6f8b6c;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+/* Header Styles */
+.Titlelogo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.Titlelogo h5, .Titlelogo h2 {
+  margin: 0;
+}
+
+.Title {
+  text-align: center;
+}
+
+.title1 {
+  color: #000000;
+  font-size: 16px;
+  margin: 0;
+}
+
+.title2 {
+  color: #000000;
+  font-size: 24px;
+  margin: 5px 0;
+}
+
+.kolo {
+  width: 150px;
+  height: 100px;
+}
+
+/* Form Styles */
+.deets {
+  margin-top: 20px;
+}
+
+/* Country and State Styles */
+.country-parent,
+.state-parent {
+  margin-bottom: 20px;
+}
+
+.name {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.box1,
+.box2 {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.box1:focus,
+.box2:focus {
+  border-color: #007bff;
+}
+
+/* Accommodation Type Styles */
+.Accomodation-parent {
+  margin-bottom: 20px;
+}
+
+.radio-label {
+  display: block; /* Change display property to block */
+  margin-bottom: 10px; /* Add some spacing between radio buttons */
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* Hostel Name Styles */
+.hostel-name {
+  margin-bottom: 10px;
+}
+
+/* Submit Button Styles */
+.submit {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background-color: #000000;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s ease;
+}
+
+.submit:hover {
+  background-color: grey;
+}
+
+/* Hidden Class (To Hide Elements Initially) */
+.hidden {
+  display: none;
+}

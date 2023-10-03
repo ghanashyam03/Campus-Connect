@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./editintglo.css" />
+    <link rel="stylesheet" href="./editint.css" />
+
+    <title>Interest Selection Page</title>
+</head>
+<body>
+    <div class="title">
+        <h1>Explore and Select Your Interests</h1>
+        <h3>Pick Your Top 5 Interests</h3>
+    </div>
+    <img class="kolo" src="logo.png">
+    <form method="post" action="/editint">
+        <div class="content">
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Sports" onclick="toggleInterest(this)">
+                    Sports
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Dance" onclick="toggleInterest(this)">
+                    Dance
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Debate" onclick="toggleInterest(this)">
+                    Debate
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Clubs" onclick="toggleInterest(this)">
+                    Clubs
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Theatre" onclick="toggleInterest(this)">
+                    Theatre
+                </label>
+            </div>
+
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Volunteer at local Organizations" onclick="toggleInterest(this)">
+                    Volunteer at local Organizations
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Participate in Fundraising Events" onclick="toggleInterest(this)">
+                    Participate in Fundraising Events
+                </label>
+            </div>
+
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Startup Ventures" onclick="toggleInterest(this)">
+                    Startup Ventures
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Business Competition" onclick="toggleInterest(this)">
+                    Business Competition
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Developing Entrepreneurial Skill" onclick="toggleInterest(this)">
+                    Developing Entrepreneurial Skill
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Entrepreneurship Workshop" onclick="toggleInterest(this)">
+                    Entrepreneurship Workshop
+                </label>
+            </div>
+
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Painting" onclick="toggleInterest(this)">
+                    Painting
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Photography" onclick="toggleInterest(this)">
+                    Photography
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Graphic design" onclick="toggleInterest(this)">
+                    Graphic design
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Artclub" onclick="toggleInterest(this)">
+                    Artclub
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Creative Workshop" onclick="toggleInterest(this)">
+                    Creative Workshop
+                </label>
+            </div>
+
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Travelling" onclick="toggleInterest(this)">
+                    Travelling
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Backpacking" onclick="toggleInterest(this)">
+                    Backpacking
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Studying abroad" onclick="toggleInterest(this)">
+                    Studying abroad
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Exchange Programs" onclick="toggleInterest(this)">
+                    Exchange Programs
+                </label>
+            </div>
+
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Mindfulness" onclick="toggleInterest(this)">
+                    Mindfulness
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Meditation" onclick="toggleInterest(this)">
+                    Meditation
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Time Management" onclick="toggleInterest(this)">
+                    Time Management
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Personal Finance" onclick="toggleInterest(this)">
+                    Personal Finance
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Public Speaking" onclick="toggleInterest(this)">
+                    Public Speaking
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Leadership Development" onclick="toggleInterest(this)">
+                    Leadership Development
+                </label>
+            </div>
+
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Coding" onclick="toggleInterest(this)">
+                    Coding
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Software Development" onclick="toggleInterest(this)">
+                    Software Development
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="App Development" onclick="toggleInterest(this)">
+                    App Development
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Robotics" onclick="toggleInterest(this)">
+                    Robotics
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Artificial Intelligence" onclick="toggleInterest(this)">
+                    Artificial Intelligence
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="TechRelated Activities" onclick="toggleInterest(this)">
+                    TechRelated Activities
+                </label>
+            </div>
+
+            <div class="interest-group">
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Intramural Sports Team" onclick="toggleInterest(this)">
+                    Intramural Sports Team
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Outdoor Activities" onclick="toggleInterest(this)">
+                    Outdoor Activities
+                </label>
+                <label class="Heading">
+                    <input type="checkbox" name="interest" value="Gym" onclick="toggleInterest(this)">
+                    Gym
+                </label>
+            </div>
+        </div>
+        <br><br>
+        <input type="hidden" name="selectedInterests" id="selectedInterests">
+        <button type="submit" >Submit</button>
+    </form>
+
+    <script>
+        const MAX_INTERESTS = 5;
+        const selectedInterests = new Set();
+
+        function toggleInterest(checkbox) {
+            if (checkbox.checked) {
+                if (selectedInterests.size >= MAX_INTERESTS) {
+                    alert("You can only select up to 5 interests.");
+                    checkbox.checked = false;
+                } else {
+                    selectedInterests.add(checkbox.value);
+                }
+            } else {
+                selectedInterests.delete(checkbox.value);
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+

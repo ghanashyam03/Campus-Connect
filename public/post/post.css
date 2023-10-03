@@ -1,0 +1,105 @@
+body {
+    margin: 0;
+    padding: 0;
+      font-family: Arial, sans-serif;
+  }
+  
+  .sidebar {
+    width: 250px;
+    background-color: #6f8b6c;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-x: hidden;
+    padding-top: 20px;
+  }
+  
+  .image-logo {
+    width: 250px; /* Set the desired width */
+    height: 100%; /* Set the desired height */
+  }
+  
+  
+  .image-container {
+    background-color: #6f8b6c;
+    padding: 20px;
+  }
+  
+  .sidebar a {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    text-decoration: none;
+    color: #000;
+  }
+  
+  .sidebar a i {
+    margin-right: 10px;
+  }
+  
+  .sidebar a:hover {
+    background-color: #ddd;
+  }
+  
+  
+  h1 {
+    text-align: center;
+    margin-top: 30px;
+    margin-bottom: 15px;
+  }
+  
+  .tb {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    border: 1px solid #fff;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center the text box vertically */
+    background-color: #bed3c5;
+  }
+  
+  .tb label {
+    font-weight: bold;
+  }
+  
+  .tb input[type="text"],
+  .tb textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+  }
+  
+  .tb input[type="text"]:focus,
+  .tb textarea:focus {
+    border-color: #007bff;
+    outline: none;
+  }
+  
+  .tb input[type="text"]::placeholder,
+  .tb textarea::placeholder {
+    color: #aaa;
+  }
+  
+   .butt {
+    background-color: #000;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
+  
+   .butt:hover {
+    background-color: grey;
+  }
+  
+   /* .tb button[type="button"]:active {
+    background-color: #000;
+  } */
+   

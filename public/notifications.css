@@ -1,0 +1,129 @@
+/* Assuming you have a CSS file named notification.css, you can add the following styles */
+
+/* Reset default styles and apply a simple layout */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+  }
+  
+  header {
+    background-color: #bed3c5;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    margin: 0px;
+  }
+
+ 
+  
+  .sidebar {
+    width: 250px;
+    background-color: #6f8b6c;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-x: hidden;
+    padding-top: 20px;
+  }
+  
+  .image-logo {
+    width: 250px; /* Set the desired width */
+    height: 100%; /* Set the desired height */
+  }
+  
+  
+  .image-container {
+    background-color: #6f8b6c;
+    padding: 20px;
+  }
+  
+  .sidebar a {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    text-decoration: none;
+    color: #000;
+  }
+  
+  .sidebar a i {
+    margin-right: 10px;
+  }
+  
+  .sidebar a:hover {
+    background-color: #ddd;
+  }
+  
+  main {
+    padding: 20px;
+    margin-left: 250px; 
+  }
+  
+
+
+  /* Style the card container */
+  article {
+    width: 1000px;
+    background-color: #fff;
+    border: 1px solid #000;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 10px auto;
+  }
+  
+  
+  
+  article header {
+    background-color: #bed3c5;
+    color: #000;
+    text-align: center;
+    padding: 8px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+  
+  
+  
+  article header p.timestamp {
+    margin: 8px 0;
+  }
+  
+  article p.notification-content {
+    margin-top: 10px;
+    font-size: 16px;
+  }
+  
+  article p.notification-content strong {
+    font-weight: bold;
+  }
+  
+  /* Additional styles to improve readability and aesthetics */
+  /* main {
+    max-width: 800px;
+    margin: 0 auto;
+  } */
+  
+ 
+
+ h1 {
+  
+  color: #000;
+  text-align: center;
+}
+.circular-image {
+  width: 50px; /* Set the desired width */
+  height: 50px; /* Set the desired height */
+  border-radius: 50%; /* This will create a circular shape */
+  object-fit: cover; /* Ensure the image covers the circular container */
+}
+.profile{
+  display: flex;
+
+}
+.sender{ 
+  margin-left: 2rem;
+  margin-top: 1rem;
+}
+

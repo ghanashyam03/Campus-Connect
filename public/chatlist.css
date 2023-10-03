@@ -66,13 +66,24 @@ body {
   align-items: center;
 }
 
+.logo-and-profile h3 {
+  font-size: 24px;
+  margin-right: 10px;
+  color: #ffffff;
+}
+
+.logo-and-profile .profile-picture {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   background-color: #344031;
-  color: #bed3c5;
+  color: #ffeba7;
   padding: 10px;
 }
 
@@ -80,7 +91,6 @@ body {
   font-size: 24px;
   margin: 0;
 }
-
 
 .logo-and-profile .home-icon {
   font-size: 24px;
@@ -90,7 +100,7 @@ body {
 }
 
 .logo-and-profile .home-icon:hover {
-  color: #bed3c5; /* Change the color on hover if desired */
+  color: #ffeba7; /* Change the color on hover if desired */
 }
 
 
@@ -99,6 +109,7 @@ body {
   height: 40px;
   border-radius: 50%;
 }
+
 /* Content styles */
 .content {
   margin-left: 250px;
@@ -120,81 +131,49 @@ body {
   font-size: 25px;
 }
 
-/* Your existing CSS styles */
-
-/* Style for the chat box */
-.chat-box {
-  padding: 20px;
-  background-color: #f2f2f2;
+.user-profile {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: left;
 }
 
-/* Style for the friend's profile section */
-.friend-profile {
+.friends-list {
+  margin-top: 10px;
+}
+
+.friend {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
-.friend-profile img {
-  width: 40px;
-  height: 40px;
+.friend img {
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
+  object-fit: cover;
   margin-right: 10px;
 }
 
-.friend-profile h3 {
-  font-size: 20px;
+.friend span {
+  font-size: 16px;
+  font-weight: bold;
 }
 
-/* Style for the chat messages */
-.chat-messages {
-  max-height: 300px;
-  overflow-y: auto;
-  clear: both;
-  display: flex;
-  flex-direction: column;
+.profile-chat-container {
+  background-color: #f9f9f9; /* Set the background color for the container */
+  padding: 10px; /* Set padding to create the box effect */
+  border: 1px solid #ccc; /* Add a border for the container */
+  border-radius: 5px; /* Add rounded corners to the container */
 }
 
-.message {
-  margin-bottom: 10px;
-  padding: 10px;
-  border-radius: 5px;
-  max-width: 70%;
+.friends-list .friend a {
+  color: black;
+  text-decoration: none;
 }
 
-.message.user {
-  background-color: #ffffff;
-  color: #000000;
-  align-self: flex-end;
-  float: right;
-}
-
-.message.friend {
-  background-color: #bed3c5;
-  color: #000000;
-  align-self: flex-start;
-  clear: both; 
-}
-
-/* Style for the message input form */
-.message-input {
-  display: flex;
-  align-items: center;
-}
-
-.message-input input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #000000;
-  border-radius: 5px;
-}
-
-.message-input button {
-  padding: 10px 20px;
-  background-color: #bed3c5;
-  color: #000000;
-  border: none;
-  border-radius: 5px;
-  margin-left: 10px;
-  cursor: pointer;
+.friends-list .friend:not(:last-child) {
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 10px; /* Add some padding at the bottom to space out the friends */
 }

@@ -1,0 +1,102 @@
+
+        /* Style to place buttons and labels vertically */
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        body{
+            
+           
+            background-color: #AAC8A7;
+           
+        }
+        
+        /* Customize the appearance of the button */
+        input[type="button"] {
+            margin-right: 10px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        /* Style for selected buttons */
+        input[type="button"].selected {
+            background-color: #245f40;
+            color: #fff;
+        }
+
+        /* Style for each group of interests */
+        .interest-group {
+            margin-bottom: 20px;
+        }
+   
+        .kolo {
+          
+            height: 100px;
+            margin-left: 800px;
+            margin-top: -124px;
+            margin-bottom:100px ;
+          }
+
+          button {
+            cursor: pointer;
+            border: 0;
+            padding: var(--padding-3xs);
+            background-color: #344031;
+           color: white;
+            top: 950px;
+            left: 324px;
+            border-radius: 36px;
+            width: 130px;
+            font-size: 16px;
+           
+            flex-direction: row;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            margin-bottom:25px;
+            margin-left:721px;
+            margin-top: -33px;
+        }
+
+        /* Hover effect for the "Next" button */
+        button:hover {
+            background-color: #5f9f7c;
+        }
+
+        .Heading{
+            
+            font-weight: 600;
+        }
+       .content{
+        margin-left:113px ;
+        font-size: larger;
+        
+        margin-top: -33px;
+       }
+
+       .title{
+        margin-left:111px;
+        align-items : flex-start;
+        margin-top: 20px;
+        display: flex;
+     flex-direction: column;
+       }
+
+       input[type="button"] {
+        margin-right: 10px;
+        background-color: #f1f1f1;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 5px 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+       }
+       input[type="button"].selected {
+        background-color: #245f40;
+        color: #fff;
+    }
+   
